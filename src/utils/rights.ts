@@ -1,0 +1,10 @@
+export const Rights = [
+  "SEND_MESSAGES",
+  "SEND_ATTACHMENTS",
+  "DELETE_MESSAGES",
+  "ADD_USERS",
+  "DELETE_USERS",
+  "CHANGE_USER_RIGHTS",
+  "CHANGE_ROOM",
+  "DELETE_ROOM"
+];
