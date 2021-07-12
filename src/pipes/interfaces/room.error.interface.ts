@@ -1,4 +1,4 @@
-export interface Room {
+export interface RoomError {
   id: string;
   name: string;
   description?: string;
