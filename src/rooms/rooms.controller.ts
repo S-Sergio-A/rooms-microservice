@@ -1,7 +1,6 @@
 import { Controller, HttpStatus, UseFilters } from "@nestjs/common";
 import { MessagePattern, Payload, RpcException, Transport } from "@nestjs/microservices";
 import { Observable } from "rxjs";
-import { RoomValidationPipe } from "../pipes/validation/room.validation.pipe";
 import { ExceptionFilter } from "../exceptions/filters/Exception.filter";
 import { RoomDocument } from "./schemas/room.schema";
 import { RoomsService } from "./rooms.service";
@@ -13,7 +12,9 @@ export class RoomsController {
   constructor(private readonly roomsService: RoomsService) {}
 
   @MessagePattern({ cmd: "create-room" }, Transport.REDIS)
-  async createRoom(@Payload(new RoomValidationPipe()) roomDto: RoomDto, userId: string): Promise<HttpStatus | Observable<any> | RpcException> {
+  async createRoom(
+    @Payload() { userId, roomDto }: { roomDto: RoomDto; userId: string }
+  ): Promise<HttpStatus | Observable<any> | RpcException> {
     return await this.roomsService.createRoom(userId, roomDto);
   }
 
@@ -23,12 +24,12 @@ export class RoomsController {
   }
 
   @MessagePattern({ cmd: "get-all-user-rooms" }, Transport.REDIS)
-  async getAllUserRooms(@Payload() userId: string): Promise<RoomDocument[] | Observable<any> | RpcException> {
+  async getAllUserRooms(@Payload() { userId }: { userId: string }): Promise<RoomDocument[] | Observable<any> | RpcException> {
     return await this.roomsService.getAllUserRooms(userId);
   }
 
   @MessagePattern({ cmd: "find-room-by-name" }, Transport.REDIS)
-  async findRoomByName(@Payload() name: string): Promise<RoomDocument[] | Observable<any> | RpcException> {
+  async findRoomByName(@Payload() { name }: { name: string }): Promise<RoomDocument[] | Observable<any> | RpcException> {
     return await this.roomsService.findRoomByName(name);
   }
 
