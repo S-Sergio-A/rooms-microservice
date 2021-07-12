@@ -1,6 +1,6 @@
-import { PipeTransform, ArgumentMetadata, BadRequestException, Injectable, Inject } from "@nestjs/common";
-import { ValidationException } from "../../exceptions/Validation.exception";
+import { PipeTransform, ArgumentMetadata, BadRequestException, Injectable } from "@nestjs/common";
 import { ValidationService } from "./validation.service";
+import { RpcException } from "@nestjs/microservices";
 
 @Injectable()
 export class RoomValidationPipe implements PipeTransform {
@@ -18,11 +18,7 @@ export class RoomValidationPipe implements PipeTransform {
     if (isValid) {
       return value;
     } else {
-      throw new ValidationException(errors);
+      throw new RpcException(errors);
     }
-  }
-
-  private _toValidate(metatype): boolean {
-    return typeof metatype === "object";
   }
 }
