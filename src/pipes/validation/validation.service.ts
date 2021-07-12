@@ -1,14 +1,16 @@
 import { Injectable } from "@nestjs/common";
 import { v4 } from "uuid";
 import { GlobalErrorCodes } from "../../exceptions/errorCodes/GlobalErrorCodes";
+import { RoomsService } from "../../rooms/rooms.service";
+import { RoomDto } from "../../rooms/room.dto";
 import { InternalFailure } from "../interfaces/internal-failure.interface";
-import { RoomDto } from "../../rooms/dto/room.dto";
-import { Room } from "../interfaces/room";
+import { RoomError } from "../interfaces/room.error.interface";
 
 @Injectable()
 export class ValidationService {
+  constructor(private readonly roomsService: RoomsService) {}
   async validateRoom(data: RoomDto) {
-    let errors: Partial<Room & InternalFailure> = {};
+    let errors: Partial<RoomError & InternalFailure> = {};
 
     try {
       if (await this._isEmpty(data.id)) {
@@ -50,8 +52,24 @@ export class ValidationService {
 
         data.createdAt = `${localTime} ${localDate}`;
       }
-    } catch (err) {
-      errors.internalFailure = err;
+    } catch (e) {
+      errors.internalFailure = e;
+    }
+
+    return {
+      errors,
+      isValid: await this._isEmpty(errors)
+    };
+  }
+
+  async verifyRights(data) {
+    let errors: Partial<{ rights: string } & InternalFailure> = {};
+    try {
+      if (!data["rights"] || !(await this.roomsService.verifyRights(data["rights"], data.userId))) {
+        errors.rights = "You don't have rights for this action.";
+      }
+    } catch (e) {
+      errors.internalFailure = e;
     }
 
     return {
