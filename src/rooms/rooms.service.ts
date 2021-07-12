@@ -16,10 +16,10 @@ export class RoomsService {
     @InjectModel("Rights") private readonly rightsModel: Model<RightsDocument>
   ) {}
 
-  async createRoom(roomDto: RoomDto): Promise<HttpStatus | Observable<any> | RpcException> {
+  async createRoom(userId: string, roomDto: RoomDto): Promise<HttpStatus | Observable<any> | RpcException> {
     try {
       const createdRoom = new this.roomModel(roomDto);
-
+      createdRoom.usersID.push(userId);
       await createdRoom.save();
       return HttpStatus.CREATED;
     } catch (e) {
@@ -32,9 +32,25 @@ export class RoomsService {
     }
   }
 
-  async getAllRooms(): Promise<RoomDocument[] | Observable<any> | RpcException> {
+  async getAllRooms(): Promise<RoomDocument[] | RpcException> {
     try {
       return this.roomModel.find();
+    } catch (e) {
+      console.log(e.stack);
+      return new RpcException({
+        key: "INTERNAL_ERROR",
+        code: GlobalErrorCodes.INTERNAL_ERROR.code,
+        message: GlobalErrorCodes.INTERNAL_ERROR.value
+      });
+    }
+  }
+
+  async getAllUserRooms(userId: string): Promise<RoomDocument[] | Observable<any> | RpcException> {
+    try {
+      const rooms = await this.getAllRooms();
+      if (!(rooms instanceof RpcException)) {
+        rooms.filter((item) => item.usersID.includes(userId));
+      }
     } catch (e) {
       console.log(e.stack);
       return new RpcException({
