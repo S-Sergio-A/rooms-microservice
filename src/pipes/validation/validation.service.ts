@@ -1,66 +1,10 @@
 import { Injectable } from "@nestjs/common";
-import { v4 } from "uuid";
-import { GlobalErrorCodes } from "../../exceptions/errorCodes/GlobalErrorCodes";
 import { RoomsService } from "../../rooms/rooms.service";
-import { RoomDto } from "../../rooms/room.dto";
 import { InternalFailure } from "../interfaces/internal-failure.interface";
-import { RoomError } from "../interfaces/room.error.interface";
 
 @Injectable()
 export class ValidationService {
   constructor(private readonly roomsService: RoomsService) {}
-  async validateRoom(data: RoomDto) {
-    let errors: Partial<RoomError & InternalFailure> = {};
-
-    try {
-      if (await this._isEmpty(data.id)) {
-        data.id = v4();
-      }
-
-      if (await this._isEmpty(data.name)) {
-        errors.name = GlobalErrorCodes.EMPTY_ERROR.value;
-      }
-
-      if (await this._isEmpty(data.description)) {
-        data.description = "";
-      }
-
-      if (await this._isEmpty(data.isUser)) {
-        errors.name = GlobalErrorCodes.EMPTY_ERROR.value;
-      }
-
-      if (await this._isEmpty(data.isPrivate)) {
-        data.isPrivate = true;
-      }
-
-      if (await this._isEmpty(data.usersID)) {
-        data.usersID = [];
-      }
-
-      if (await this._isEmpty(data.messagesID)) {
-        data.messagesID = [];
-      }
-
-      if (await this._isEmpty(data.membersCount)) {
-        data.membersCount = 2;
-      }
-
-      if (await this._isEmpty(data.createdAt)) {
-        const date = Date.now();
-        const localTime = new Date(date).toLocaleTimeString("ru-RU").substring(0, 5);
-        const localDate = new Date(date).toLocaleDateString("ru-RU");
-
-        data.createdAt = `${localTime} ${localDate}`;
-      }
-    } catch (e) {
-      errors.internalFailure = e;
-    }
-
-    return {
-      errors,
-      isValid: await this._isEmpty(errors)
-    };
-  }
 
   async verifyRights(data) {
     let errors: Partial<{ rights: string } & InternalFailure> = {};
