@@ -13,13 +13,18 @@ export class RoomsController {
   constructor(private readonly roomsService: RoomsService) {}
 
   @MessagePattern({ cmd: "create-room" }, Transport.REDIS)
-  async createRoom(@Payload(new RoomValidationPipe()) roomDto: RoomDto): Promise<HttpStatus | Observable<any> | RpcException> {
-    return await this.roomsService.createRoom(roomDto);
+  async createRoom(@Payload(new RoomValidationPipe()) roomDto: RoomDto, userId: string): Promise<HttpStatus | Observable<any> | RpcException> {
+    return await this.roomsService.createRoom(userId, roomDto);
   }
 
   @MessagePattern({ cmd: "get-all-rooms" }, Transport.REDIS)
   async getAllRooms(): Promise<RoomDocument[] | Observable<any> | RpcException> {
     return await this.roomsService.getAllRooms();
+  }
+
+  @MessagePattern({ cmd: "get-all-user-rooms" }, Transport.REDIS)
+  async getAllUserRooms(@Payload() userId: string): Promise<RoomDocument[] | Observable<any> | RpcException> {
+    return await this.roomsService.getAllUserRooms(userId);
   }
 
   @MessagePattern({ cmd: "find-room-by-name" }, Transport.REDIS)
