@@ -228,11 +228,14 @@ export class RoomsService {
       if (rights.includes("ADD_USERS")) {
         const searchResult = await this.roomModel.findOne({ id: roomId });
 
-        searchResult.usersID.push(userId);
+        if (searchResult) {
+          searchResult.usersID.push(userId);
 
-        await this.roomModel.updateOne({ id: roomId }, searchResult);
+          await this.roomModel.updateOne({ id: roomId }, searchResult);
 
-        return HttpStatus.CREATED;
+          return HttpStatus.CREATED;
+        }
+        return HttpStatus.BAD_REQUEST;
       }
       return HttpStatus.UNAUTHORIZED;
     } catch (e) {
@@ -258,15 +261,18 @@ export class RoomsService {
       if (rights.includes("DELETE_USERS")) {
         const searchResult = await this.roomModel.findOne({ id: roomId });
 
-        const userPosition = searchResult.usersID.findIndex((item) => item === userId);
+        if (searchResult) {
+          const userPosition = searchResult.usersID.findIndex((item) => item === userId);
 
-        if (userPosition > -1) {
-          searchResult.usersID.splice(userPosition, 1);
-          await this.roomModel.updateOne({ id: roomId }, searchResult);
-          return HttpStatus.CREATED;
-        } else {
-          return HttpStatus.NOT_FOUND;
+          if (userPosition > -1) {
+            searchResult.usersID.splice(userPosition, 1);
+            await this.roomModel.updateOne({ id: roomId }, searchResult);
+            return HttpStatus.CREATED;
+          } else {
+            return HttpStatus.NOT_FOUND;
+          }
         }
+        return HttpStatus.BAD_REQUEST;
       }
       return HttpStatus.UNAUTHORIZED;
     } catch (e) {
@@ -291,10 +297,19 @@ export class RoomsService {
     newRights: string[];
   }): Promise<HttpStatus | Observable<any> | RpcException> {
     try {
-      if (rights.includes("CHANGE_USER_RIGHTS")) {
-        await this.rightsModel.updateOne({ id: userId, roomId }, { rights: newRights });
+      if (!rights || !userId || !roomId || !newRights) {
+        // TODO ERROR some data not provided
+        return HttpStatus.BAD_REQUEST;
+      }
 
-        return HttpStatus.CREATED;
+      if (rights.includes("CHANGE_USER_RIGHTS")) {
+        const { nModified } = await this.rightsModel.updateOne({ id: userId, roomId }, { rights: newRights });
+        console.log(nModified);
+        if (nModified > 0) {
+          return HttpStatus.CREATED;
+        } else {
+          return HttpStatus.BAD_REQUEST;
+        }
       }
       return HttpStatus.UNAUTHORIZED;
     } catch (e) {
