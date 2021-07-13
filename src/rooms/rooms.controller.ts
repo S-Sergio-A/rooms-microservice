@@ -11,6 +11,11 @@ import { RoomDto } from "./room.dto";
 export class RoomsController {
   constructor(private readonly roomsService: RoomsService) {}
 
+  @MessagePattern({ cmd: "add-welcome-chat" }, Transport.REDIS)
+  async addWelcomeChat(@Payload() userId: string): Promise<HttpStatus | Observable<any> | RpcException> {
+    return await this.roomsService.addWelcomeChat(userId);
+  }
+
   @MessagePattern({ cmd: "create-room" }, Transport.REDIS)
   async createRoom(
     @Payload() { userId, roomDto }: { roomDto: RoomDto; userId: string }

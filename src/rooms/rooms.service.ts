@@ -16,6 +16,25 @@ export class RoomsService {
     @InjectModel("Rights") private readonly rightsModel: Model<RightsDocument>
   ) {}
 
+  async addWelcomeChat(userId: string): Promise<HttpStatus | Observable<any> | RpcException> {
+    try {
+      const welcomeChat = await this.roomModel.findOne({ name: "ChatiZZe" });
+      
+      welcomeChat.id =  welcomeChat.id + userId;
+      welcomeChat.usersID.push(userId);
+  
+      await welcomeChat.save();
+      return HttpStatus.CREATED;
+    } catch (e) {
+      console.log(e.stack);
+      return new RpcException({
+        key: "INTERNAL_ERROR",
+        code: GlobalErrorCodes.INTERNAL_ERROR.code,
+        message: GlobalErrorCodes.INTERNAL_ERROR.value
+      });
+    }
+  }
+
   async createRoom(userId: string, roomDto: RoomDto): Promise<HttpStatus | Observable<any> | RpcException> {
     try {
       const createdRoom = new this.roomModel(roomDto);
