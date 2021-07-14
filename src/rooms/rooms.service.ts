@@ -19,10 +19,10 @@ export class RoomsService {
   async addWelcomeChat(userId: string): Promise<HttpStatus | Observable<any> | RpcException> {
     try {
       const welcomeChat = await this.roomModel.findOne({ name: "ChatiZZe" });
-      
-      welcomeChat.id =  welcomeChat.id + userId;
+
+      welcomeChat.id = welcomeChat.id + userId;
       welcomeChat.usersID.push(userId);
-  
+
       await welcomeChat.save();
       return HttpStatus.CREATED;
     } catch (e) {
@@ -65,11 +65,16 @@ export class RoomsService {
   }
 
   async getAllUserRooms(userId: string): Promise<RoomDocument[] | Observable<any> | RpcException> {
+    let userRooms: RoomDocument[];
     try {
       const rooms = await this.getAllRooms();
+      
       if (!(rooms instanceof RpcException)) {
-        rooms.filter((item) => item.usersID.includes(userId));
+        userRooms = rooms.filter((item) => item.usersID.includes(userId));
       }
+  
+      console.log(userRooms);
+      return userRooms;
     } catch (e) {
       console.log(e.stack);
       return new RpcException({
