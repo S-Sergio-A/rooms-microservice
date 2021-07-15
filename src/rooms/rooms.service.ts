@@ -68,11 +68,11 @@ export class RoomsService {
     let userRooms: RoomDocument[];
     try {
       const rooms = await this.getAllRooms();
-      
+
       if (!(rooms instanceof RpcException)) {
         userRooms = rooms.filter((item) => item.usersID.includes(userId));
       }
-  
+
       console.log(userRooms);
       return userRooms;
     } catch (e) {
@@ -273,32 +273,35 @@ export class RoomsService {
   }
 
   async deleteUserFromRoom({
+    type,
     rights,
     userId,
     roomId
   }: {
+    type: "DELETE_USER" | "LEAVE_ROOM";
     rights: string[];
     userId: string;
     roomId: string;
   }): Promise<HttpStatus | Observable<any> | RpcException> {
     try {
-      if (rights.includes("DELETE_USERS")) {
-        const searchResult = await this.roomModel.findOne({ id: roomId });
-
-        if (searchResult) {
-          const userPosition = searchResult.usersID.findIndex((item) => item === userId);
-
-          if (userPosition > -1) {
-            searchResult.usersID.splice(userPosition, 1);
-            await this.roomModel.updateOne({ id: roomId }, searchResult);
-            return HttpStatus.CREATED;
-          } else {
-            return HttpStatus.NOT_FOUND;
-          }
-        }
-        return HttpStatus.BAD_REQUEST;
+      if (type === "DELETE_USER" && !rights.includes("DELETE_USERS")) {
+        return HttpStatus.UNAUTHORIZED;
       }
-      return HttpStatus.UNAUTHORIZED;
+
+      const searchResult = await this.roomModel.findOne({ id: roomId });
+
+      if (searchResult) {
+        const userPosition = searchResult.usersID.findIndex((item) => item === userId);
+
+        if (userPosition > -1) {
+          searchResult.usersID.splice(userPosition, 1);
+          await this.roomModel.updateOne({ id: roomId }, searchResult);
+          return HttpStatus.CREATED;
+        } else {
+          return HttpStatus.NOT_FOUND;
+        }
+      }
+      return HttpStatus.BAD_REQUEST;
     } catch (e) {
       console.log(e.stack);
       return new RpcException({

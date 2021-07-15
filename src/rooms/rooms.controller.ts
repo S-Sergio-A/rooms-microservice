@@ -73,7 +73,7 @@ export class RoomsController {
 
   @MessagePattern({ cmd: "delete-user" }, Transport.REDIS)
   public async deleteUserFromRoom(
-    @Payload() data: { rights: string[]; userId: string; roomId: string }
+    @Payload() data: { type: "DELETE_USER" | "LEAVE_ROOM"; rights: string[]; userId: string; roomId: string }
   ): Promise<HttpStatus | Observable<any> | RpcException> {
     return await this.roomsService.deleteUserFromRoom(data);
   }
