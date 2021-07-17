@@ -65,8 +65,11 @@ export class RoomsService {
   }
 
   async getAllUserRooms(userId: string): Promise<RoomDocument[] | Observable<any> | RpcException> {
-    let userRooms: RoomDocument[];
     try {
+      let userRooms: RoomDocument[];
+  
+      console.log(userId);
+      
       const rooms = await this.getAllRooms();
 
       if (!(rooms instanceof RpcException)) {
