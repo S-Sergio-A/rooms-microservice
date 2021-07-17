@@ -2,7 +2,7 @@ import { HttpStatus, Injectable } from "@nestjs/common";
 import { RpcException } from "@nestjs/microservices";
 import { InjectModel } from "@nestjs/mongoose";
 import { Observable } from "rxjs";
-import { Model } from "mongoose";
+import { Model, Types } from "mongoose";
 import { GlobalErrorCodes } from "../exceptions/errorCodes/GlobalErrorCodes";
 import { Rights } from "../utils/rights";
 import { RightsDocument } from "./schemas/rights.schema";
@@ -21,7 +21,7 @@ export class RoomsService {
       const welcomeChat = await this.roomModel.findOne({ name: "ChatiZZe" });
 
       welcomeChat.id = welcomeChat.id + userId;
-      welcomeChat.usersID.push(userId);
+      welcomeChat.usersID.push(Types.ObjectId(userId));
 
       await welcomeChat.save();
       return HttpStatus.CREATED;
@@ -38,7 +38,7 @@ export class RoomsService {
   async createRoom(userId: string, roomDto: RoomDto): Promise<HttpStatus | Observable<any> | RpcException> {
     try {
       const createdRoom = new this.roomModel(roomDto);
-      createdRoom.usersID.push(userId);
+      createdRoom.usersID.push(Types.ObjectId(userId));
       await createdRoom.save();
       return HttpStatus.CREATED;
     } catch (e) {
@@ -70,7 +70,7 @@ export class RoomsService {
       const rooms = await this.getAllRooms();
 
       if (!(rooms instanceof RpcException)) {
-        userRooms = rooms.filter((item) => item.usersID.includes(userId));
+        userRooms = rooms.filter((item) => item.usersID.includes(Types.ObjectId(userId)));
       }
 
       console.log(userRooms);
@@ -127,13 +127,12 @@ export class RoomsService {
         const room = await this.roomModel.findOne({ id: roomId });
 
         const updatedRoom = {
-          usersID: roomDto.usersID ? roomDto.usersID : room.usersID,
-          messagesID: roomDto.messagesID ? roomDto.messagesID : room.messagesID,
+          usersID: room.usersID,
+          messagesID: room.messagesID,
           _id: room._id,
-          id: roomId,
           name: roomDto.name ? roomDto.name : room.name,
           description: roomDto.description ? roomDto.description : room.description,
-          isUser: roomDto.isUser ? roomDto.isUser : room.isUser,
+          isUser: room.isUser,
           isPrivate: roomDto.isPrivate ? roomDto.isPrivate : room.isPrivate,
           membersCount: roomDto.membersCount ? roomDto.membersCount : room.membersCount,
           createdAt: room.createdAt,
@@ -188,7 +187,7 @@ export class RoomsService {
       if (rights.includes("DELETE_MESSAGES")) {
         const searchResult = await this.roomModel.findOne({ id: roomId });
 
-        const messagePosition = searchResult.messagesID.findIndex((item) => item === messageId);
+        const messagePosition = searchResult.messagesID.findIndex((item) => item === Types.ObjectId(messageId));
 
         if (messagePosition > -1) {
           searchResult.messagesID.splice(messagePosition, 1);
@@ -222,7 +221,7 @@ export class RoomsService {
       if (rights.includes("SEND_MESSAGES")) {
         const searchResult = await this.roomModel.findOne({ id: roomId });
 
-        searchResult.messagesID.push(messageId);
+        searchResult.messagesID.push(Types.ObjectId(messageId));
 
         await this.roomModel.updateOne({ id: roomId }, searchResult);
 
@@ -253,7 +252,7 @@ export class RoomsService {
         const searchResult = await this.roomModel.findOne({ id: roomId });
 
         if (searchResult) {
-          searchResult.usersID.push(userId);
+          searchResult.usersID.push(Types.ObjectId(userId));
 
           await this.roomModel.updateOne({ id: roomId }, searchResult);
 
@@ -291,7 +290,7 @@ export class RoomsService {
       const searchResult = await this.roomModel.findOne({ id: roomId });
 
       if (searchResult) {
-        const userPosition = searchResult.usersID.findIndex((item) => item === userId);
+        const userPosition = searchResult.usersID.findIndex((item) => item === Types.ObjectId(userId));
 
         if (userPosition > -1) {
           searchResult.usersID.splice(userPosition, 1);
