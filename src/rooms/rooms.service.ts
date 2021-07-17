@@ -16,12 +16,12 @@ export class RoomsService {
     @InjectModel("Rights") private readonly rightsModel: Model<RightsDocument>
   ) {}
 
-  async addWelcomeChat(userId: string): Promise<HttpStatus | Observable<any> | RpcException> {
+  async addWelcomeChat(userId: Types.ObjectId): Promise<HttpStatus | Observable<any> | RpcException> {
     try {
       const welcomeChat = await this.roomModel.findOne({ name: "ChatiZZe" });
 
       welcomeChat.id = welcomeChat.id + userId;
-      welcomeChat.usersID.push(Types.ObjectId(userId));
+      welcomeChat.usersID.push(userId);
 
       await welcomeChat.save();
       return HttpStatus.CREATED;
@@ -35,10 +35,10 @@ export class RoomsService {
     }
   }
 
-  async createRoom(userId: string, roomDto: RoomDto): Promise<HttpStatus | Observable<any> | RpcException> {
+  async createRoom(userId: Types.ObjectId, roomDto: RoomDto): Promise<HttpStatus | Observable<any> | RpcException> {
     try {
       const createdRoom = new this.roomModel(roomDto);
-      createdRoom.usersID.push(Types.ObjectId(userId));
+      createdRoom.usersID.push(userId);
       await createdRoom.save();
       return HttpStatus.CREATED;
     } catch (e) {
@@ -64,16 +64,16 @@ export class RoomsService {
     }
   }
 
-  async getAllUserRooms(userId: string): Promise<RoomDocument[] | Observable<any> | RpcException> {
+  async getAllUserRooms(userId: Types.ObjectId): Promise<RoomDocument[] | Observable<any> | RpcException> {
     try {
       let userRooms: RoomDocument[];
-  
+
       console.log(userId);
-      
+
       const rooms = await this.getAllRooms();
 
       if (!(rooms instanceof RpcException)) {
-        userRooms = rooms.filter((item) => item.usersID.includes(Types.ObjectId(userId)));
+        userRooms = rooms.filter((item) => item.usersID.includes(userId));
       }
 
       console.log(userRooms);
@@ -247,7 +247,7 @@ export class RoomsService {
     roomId
   }: {
     rights: string[];
-    userId: string;
+    userId: Types.ObjectId;
     roomId: string;
   }): Promise<HttpStatus | Observable<any> | RpcException> {
     try {
@@ -255,7 +255,7 @@ export class RoomsService {
         const searchResult = await this.roomModel.findOne({ id: roomId });
 
         if (searchResult) {
-          searchResult.usersID.push(Types.ObjectId(userId));
+          searchResult.usersID.push(userId);
 
           await this.roomModel.updateOne({ id: roomId }, searchResult);
 
@@ -282,7 +282,7 @@ export class RoomsService {
   }: {
     type: "DELETE_USER" | "LEAVE_ROOM";
     rights: string[];
-    userId: string;
+    userId: Types.ObjectId;
     roomId: string;
   }): Promise<HttpStatus | Observable<any> | RpcException> {
     try {
@@ -293,7 +293,7 @@ export class RoomsService {
       const searchResult = await this.roomModel.findOne({ id: roomId });
 
       if (searchResult) {
-        const userPosition = searchResult.usersID.findIndex((item) => item === Types.ObjectId(userId));
+        const userPosition = searchResult.usersID.findIndex((item) => item === userId);
 
         if (userPosition > -1) {
           searchResult.usersID.splice(userPosition, 1);
@@ -321,7 +321,7 @@ export class RoomsService {
     newRights
   }: {
     rights: string[];
-    userId: string;
+    userId: Types.ObjectId;
     roomId: string;
     newRights: string[];
   }): Promise<HttpStatus | Observable<any> | RpcException> {
@@ -351,9 +351,9 @@ export class RoomsService {
     }
   }
 
-  async verifyRights(rights: string[], userId: string): Promise<boolean | Observable<any> | RpcException> {
+  async verifyRights(rights: string[], userId: Types.ObjectId): Promise<boolean | Observable<any> | RpcException> {
     try {
-      return await this.rightsModel.exists({ userId: userId, rights: rights });
+      return await this.rightsModel.exists({ userId, rights });
     } catch (e) {
       console.log(e.stack);
       return new RpcException({
