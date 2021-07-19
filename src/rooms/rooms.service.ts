@@ -8,12 +8,14 @@ import { Rights } from "../utils/rights";
 import { RightsDocument } from "./schemas/rights.schema";
 import { RoomDocument } from "./schemas/room.schema";
 import { RoomDto } from "./room.dto";
+import { UserDocument } from "./schemas/user.schema";
 
 @Injectable()
 export class RoomsService {
   constructor(
     @InjectModel("Room") private readonly roomModel: Model<RoomDocument>,
-    @InjectModel("Rights") private readonly rightsModel: Model<RightsDocument>
+    @InjectModel("Rights") private readonly rightsModel: Model<RightsDocument>,
+    @InjectModel("User") private readonly userModel: Model<UserDocument>
   ) {}
 
   async addWelcomeChat(userId: Types.ObjectId): Promise<HttpStatus | Observable<any> | RpcException> {
@@ -24,6 +26,12 @@ export class RoomsService {
       welcomeChat.usersID.push(userId);
 
       await welcomeChat.save();
+
+      await this.rightsModel.create({
+        user: userId,
+        roomId: welcomeChat._id,
+        rights: ["DELETE_ROOM"]
+      });
       return HttpStatus.CREATED;
     } catch (e) {
       console.log(e.stack);
@@ -40,6 +48,22 @@ export class RoomsService {
       const createdRoom = new this.roomModel(roomDto);
       createdRoom.usersID.push(userId);
       await createdRoom.save();
+
+      await this.rightsModel.create({
+        user: userId,
+        roomId: createdRoom._id,
+        rights: [
+          "SEND_MESSAGES",
+          "SEND_ATTACHMENTS",
+          "DELETE_MESSAGES",
+          "ADD_USERS",
+          "DELETE_USERS",
+          "CHANGE_USER_RIGHTS",
+          "CHANGE_ROOM",
+          "DELETE_ROOM",
+          "UPDATE_MESSAGE"
+        ]
+      });
       return HttpStatus.CREATED;
     } catch (e) {
       console.log(e.stack);
@@ -53,7 +77,7 @@ export class RoomsService {
 
   async getAllRooms(): Promise<RoomDocument[] | RpcException> {
     try {
-      return this.roomModel.find();
+      return this.roomModel.find().populate("user", "id firstName lastName birthday username email phoneNumber photo", this.userModel);
     } catch (e) {
       console.log(e.stack);
       return new RpcException({
@@ -118,15 +142,17 @@ export class RoomsService {
 
   async updateRoom({
     rights,
+    userId,
     roomId,
     roomDto
   }: {
     rights: string[];
+    userId: Types.ObjectId;
     roomId: string;
     roomDto: Partial<RoomDto>;
   }): Promise<HttpStatus | Observable<any> | RpcException> {
     try {
-      if (rights.includes("CHANGE_ROOM")) {
+      if (rights.includes("CHANGE_ROOM") && (await this._verifyRights(rights, userId))) {
         const room = await this.roomModel.findOne({ id: roomId });
 
         const updatedRoom = {
@@ -155,9 +181,17 @@ export class RoomsService {
     }
   }
 
-  async deleteRoom({ rights, roomId }: { rights: string[]; roomId: string }): Promise<HttpStatus | Observable<any> | RpcException> {
+  async deleteRoom({
+    rights,
+    userId,
+    roomId
+  }: {
+    rights: string[];
+    userId: Types.ObjectId;
+    roomId: string;
+  }): Promise<HttpStatus | Observable<any> | RpcException> {
     try {
-      if (rights.includes("DELETE_ROOM")) {
+      if (rights.includes("DELETE_ROOM") && (await this._verifyRights(rights, userId))) {
         const { deletedCount } = await this.roomModel.deleteOne({ id: roomId });
 
         if (deletedCount !== 0) {
@@ -179,15 +213,17 @@ export class RoomsService {
 
   async deleteMessageFromRoom({
     rights,
+    userId,
     roomId,
     messageId
   }: {
     rights: string[];
+    userId: Types.ObjectId;
     roomId: string;
     messageId: string;
   }): Promise<HttpStatus | Observable<any> | RpcException> {
     try {
-      if (rights.includes("DELETE_MESSAGES")) {
+      if (rights.includes("DELETE_MESSAGES") && (await this._verifyRights(rights, userId))) {
         const searchResult = await this.roomModel.findOne({ id: roomId });
 
         const messagePosition = searchResult.messagesID.findIndex((item) => item === Types.ObjectId(messageId));
@@ -213,15 +249,17 @@ export class RoomsService {
 
   async addMessageReferenceToRoom({
     rights,
+    userId,
     messageId,
     roomId
   }: {
     rights: string[];
+    userId: Types.ObjectId;
     messageId: string;
     roomId: string;
   }): Promise<HttpStatus | Observable<any> | RpcException> {
     try {
-      if (rights.includes("SEND_MESSAGES")) {
+      if (rights.includes("SEND_MESSAGES") && (await this._verifyRights(rights, userId))) {
         const searchResult = await this.roomModel.findOne({ id: roomId });
 
         searchResult.messagesID.push(Types.ObjectId(messageId));
@@ -251,7 +289,7 @@ export class RoomsService {
     roomId: string;
   }): Promise<HttpStatus | Observable<any> | RpcException> {
     try {
-      if (rights.includes("ADD_USERS")) {
+      if (rights.includes("ADD_USERS") && (await this._verifyRights(rights, userId))) {
         const searchResult = await this.roomModel.findOne({ id: roomId });
 
         if (searchResult) {
@@ -262,8 +300,9 @@ export class RoomsService {
           return HttpStatus.CREATED;
         }
         return HttpStatus.BAD_REQUEST;
+      } else {
+        return HttpStatus.UNAUTHORIZED;
       }
-      return HttpStatus.UNAUTHORIZED;
     } catch (e) {
       console.log(e.stack);
       return new RpcException({
@@ -275,35 +314,32 @@ export class RoomsService {
   }
 
   async deleteUserFromRoom({
-    type,
     rights,
     userId,
     roomId
   }: {
-    type: "DELETE_USER" | "LEAVE_ROOM";
     rights: string[];
     userId: Types.ObjectId;
     roomId: string;
   }): Promise<HttpStatus | Observable<any> | RpcException> {
     try {
-      if (type === "DELETE_USER" && !rights.includes("DELETE_USERS")) {
-        return HttpStatus.UNAUTHORIZED;
-      }
+      if (rights.includes("DELETE_USERS") && (await this._verifyRights(rights, userId))) {
+        const searchResult = await this.roomModel.findOne({ id: roomId });
 
-      const searchResult = await this.roomModel.findOne({ id: roomId });
+        if (searchResult) {
+          const userPosition = searchResult.usersID.findIndex((item) => item === userId);
 
-      if (searchResult) {
-        const userPosition = searchResult.usersID.findIndex((item) => item === userId);
-
-        if (userPosition > -1) {
-          searchResult.usersID.splice(userPosition, 1);
-          await this.roomModel.updateOne({ id: roomId }, searchResult);
-          return HttpStatus.CREATED;
+          if (userPosition > -1) {
+            searchResult.usersID.splice(userPosition, 1);
+            await this.roomModel.updateOne({ id: roomId }, searchResult);
+            return HttpStatus.CREATED;
+          } else {
+            return HttpStatus.NOT_FOUND;
+          }
         } else {
-          return HttpStatus.NOT_FOUND;
+          return HttpStatus.BAD_REQUEST;
         }
       }
-      return HttpStatus.BAD_REQUEST;
     } catch (e) {
       console.log(e.stack);
       return new RpcException({
@@ -326,12 +362,7 @@ export class RoomsService {
     newRights: string[];
   }): Promise<HttpStatus | Observable<any> | RpcException> {
     try {
-      if (!rights || !userId || !roomId || !newRights) {
-        // TODO ERROR some data not provided
-        return HttpStatus.BAD_REQUEST;
-      }
-
-      if (rights.includes("CHANGE_USER_RIGHTS")) {
+      if (rights.includes("CHANGE_USER_RIGHTS") && (await this._verifyRights(rights, userId))) {
         const { nModified } = await this.rightsModel.updateOne({ id: userId, roomId }, { rights: newRights });
         console.log(nModified);
         if (nModified > 0) {
@@ -339,8 +370,9 @@ export class RoomsService {
         } else {
           return HttpStatus.BAD_REQUEST;
         }
+      } else {
+        return HttpStatus.UNAUTHORIZED;
       }
-      return HttpStatus.UNAUTHORIZED;
     } catch (e) {
       console.log(e.stack);
       return new RpcException({
@@ -351,9 +383,22 @@ export class RoomsService {
     }
   }
 
-  async verifyRights(rights: string[], userId: Types.ObjectId): Promise<boolean | Observable<any> | RpcException> {
+  private async _verifyRights(rights: string[], user: Types.ObjectId): Promise<boolean | Observable<any> | RpcException> {
     try {
-      return await this.rightsModel.exists({ userId, rights });
+      return await this.rightsModel.exists({ user, rights });
+    } catch (e) {
+      console.log(e.stack);
+      return new RpcException({
+        key: "INTERNAL_ERROR",
+        code: GlobalErrorCodes.INTERNAL_ERROR.code,
+        message: GlobalErrorCodes.INTERNAL_ERROR.value
+      });
+    }
+  }
+
+  async loadRights(user: Types.ObjectId, roomId: Types.ObjectId): Promise<RightsDocument | RpcException> {
+    try {
+      return await this.rightsModel.findOne({ user, roomId });
     } catch (e) {
       console.log(e.stack);
       return new RpcException({
