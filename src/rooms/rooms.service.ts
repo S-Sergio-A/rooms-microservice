@@ -385,7 +385,7 @@ export class RoomsService {
 
   async loadRights(user: Types.ObjectId, roomId: Types.ObjectId): Promise<RightsDocument | RpcException> {
     try {
-      console.log(user, roomId, await this.rightsModel.findOne({ user, roomId }));
+      console.log(user, roomId, this.rightsModel, await this.rightsModel.findOne({ user, roomId }));
       return await this.rightsModel.findOne({ user, roomId });
     } catch (e) {
       console.log(e.stack);
