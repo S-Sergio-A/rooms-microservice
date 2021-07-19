@@ -5,9 +5,6 @@ export type RoomDocument = Room & Document;
 
 @Schema()
 class Room {
-  @Prop({ required: true, index: true })
-  id: string;
-
   @Prop({ required: true, index: false })
   name: string;
 
