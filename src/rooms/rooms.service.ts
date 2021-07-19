@@ -383,9 +383,10 @@ export class RoomsService {
     }
   }
 
-  private async _verifyRights(rights: string[], user: Types.ObjectId): Promise<boolean | Observable<any> | RpcException> {
+  async loadRights(user: Types.ObjectId, roomId: Types.ObjectId): Promise<RightsDocument | RpcException> {
     try {
-      return await this.rightsModel.exists({ user, rights });
+      console.log(user, roomId, await this.rightsModel.findOne({ user, roomId }));
+      return await this.rightsModel.findOne({ user, roomId });
     } catch (e) {
       console.log(e.stack);
       return new RpcException({
@@ -396,9 +397,9 @@ export class RoomsService {
     }
   }
 
-  async loadRights(user: Types.ObjectId, roomId: Types.ObjectId): Promise<RightsDocument | RpcException> {
+  private async _verifyRights(rights: string[], user: Types.ObjectId): Promise<boolean | Observable<any> | RpcException> {
     try {
-      return await this.rightsModel.findOne({ user, roomId });
+      return await this.rightsModel.exists({ user, rights });
     } catch (e) {
       console.log(e.stack);
       return new RpcException({
