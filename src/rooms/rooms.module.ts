@@ -8,9 +8,9 @@ import { RoomsService } from "./rooms.service";
 
 @Module({
   imports: [
-    MongooseModule.forFeature([{ name: "User", schema: UserSchema }], "user"),
     MongooseModule.forFeature([{ name: "Room", schema: RoomSchema }], "room"),
-    MongooseModule.forFeature([{ name: "Rights", schema: RightsSchema }], "room")
+    MongooseModule.forFeature([{ name: "Right", schema: RightsSchema }], "room"),
+    MongooseModule.forFeature([{ name: "User", schema: UserSchema }], "user")
   ],
   controllers: [RoomsController],
   providers: [RoomsService],
