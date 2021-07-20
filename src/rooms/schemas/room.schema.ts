@@ -8,7 +8,7 @@ class Room {
   @Prop({ required: true, index: false })
   name: string;
 
-  @Prop({ required: true, index: false })
+  @Prop({ required: false, index: false })
   description: string;
 
   @Prop({ required: true, index: false })
