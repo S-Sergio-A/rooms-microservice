@@ -26,7 +26,7 @@ export class RoomsController {
   }
 
   @MessagePattern({ cmd: "get-all-rooms" }, Transport.REDIS)
-  async getAllRooms(): Promise<RoomDocument[] | Observable<any> | RpcException> {
+  async getAllRooms(): Promise<any[] | Observable<any> | RpcException> {
     return await this.roomsService.getAllRooms();
   }
 
@@ -75,17 +75,17 @@ export class RoomsController {
       rights,
       userId,
       roomId,
-      newUserId,
+      newUserIdentifier,
       userRights
     }: {
       rights: string[];
       userId: string;
       roomId: string;
-      newUserId: string;
+      newUserIdentifier: string;
       userRights: string[];
     }
   ): Promise<HttpStatus | Observable<any> | RpcException> {
-    return await this.roomsService.addUserToRoom(rights, userId, roomId, newUserId, userRights);
+    return await this.roomsService.addUserToRoom(rights, userId, roomId, newUserIdentifier, userRights);
   }
 
   @MessagePattern({ cmd: "delete-user" }, Transport.REDIS)

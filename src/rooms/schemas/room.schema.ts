@@ -20,7 +20,7 @@ class Room {
   @Prop({ required: true, index: false, ref: "User", type: [Types.ObjectId] })
   usersID: Types.ObjectId[];
 
-  @Prop({ required: true, index: false, ref: "Messages", type: [Types.ObjectId] })
+  @Prop({ required: true, index: true, ref: "Messages", type: [Types.ObjectId] })
   messagesID: Types.ObjectId[];
 
   @Prop({ required: true, index: false })
