@@ -12,7 +12,12 @@ import { RoomDto } from "./room.dto";
 @Controller("rooms")
 export class RoomsController {
   constructor(private readonly roomsService: RoomsService) {}
-
+  
+  @MessagePattern({ cmd: "invoke" }, Transport.REDIS)
+  async invoke(): Promise<void> {
+    console.log("rooms-service invoked");
+  }
+  
   @MessagePattern({ cmd: "add-welcome-chat" }, Transport.REDIS)
   async addWelcomeChat(@Payload() userId: string): Promise<HttpStatus | Observable<any> | RpcException> {
     return await this.roomsService.addWelcomeChat(userId);
