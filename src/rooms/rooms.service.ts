@@ -10,6 +10,15 @@ import { RoomDocument } from "./schemas/room.schema";
 import { UserDocument } from "./schemas/user.schema";
 import { RoomDto } from "./room.dto";
 
+const cloudinary = require("cloudinary");
+
+cloudinary.config({
+  cloud_name: "gachi322",
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+  secure: true
+});
+
 @Injectable()
 export class RoomsService {
   constructor(
@@ -183,6 +192,49 @@ export class RoomsService {
         code: GlobalErrorCodes.INTERNAL_ERROR.code,
         message: GlobalErrorCodes.INTERNAL_ERROR.value
       });
+    }
+  }
+
+  async changeRoomPhoto(
+    rights: string[],
+    userId: string,
+    roomId: string,
+    photo: any
+  ): Promise<HttpStatus | Observable<any> | RpcException> {
+    try {
+      if (rights.includes("CHANGE_ROOM") && (await this._verifyRights(rights, new Types.ObjectId(userId), new Types.ObjectId(roomId)))) {
+        const room = await this.roomModel.findOne({ _id: new Types.ObjectId(roomId) });
+        let resultingImageUrl;
+
+        cloudinary.v2.uploader
+          .upload_stream(
+            {
+              resource_type: "raw",
+              folder: `ChatiZZe/${room._id}/`,
+              public_id: `photo__${new Date(Date.now().toLocaleString("Ru-ru"))}`
+            },
+            (error, result) => {
+              if (!error && result.url) {
+                resultingImageUrl = result.secure_url;
+              }
+            }
+          )
+          .end(photo);
+
+        await this.userModel.updateOne(
+          { _id: userId },
+          {
+            photo: resultingImageUrl ? resultingImageUrl : room.photo
+          }
+        );
+        return HttpStatus.CREATED;
+      }
+      return HttpStatus.UNAUTHORIZED;
+    } catch (e) {
+      console.log(e.stack);
+      if (e instanceof RpcException) {
+        return new RpcException(e);
+      }
     }
   }
 
