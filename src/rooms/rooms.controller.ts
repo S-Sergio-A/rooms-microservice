@@ -51,6 +51,13 @@ export class RoomsController {
   ): Promise<HttpStatus | Observable<any> | RpcException> {
     return await this.roomsService.updateRoom(rights, userId, roomId, roomDto);
   }
+  
+  @MessagePattern({ cmd: "change-room-photo" }, Transport.REDIS)
+  async changeRoomPhoto(
+    @Payload() { rights, userId, roomId, photo }: { rights: string[]; userId: string; roomId: string; photo: any }
+  ): Promise<HttpStatus | Observable<any> | RpcException> {
+    return await this.roomsService.changeRoomPhoto(rights, userId, roomId, photo);
+  }
 
   @MessagePattern({ cmd: "delete-room" }, Transport.REDIS)
   public async deleteRoom(
