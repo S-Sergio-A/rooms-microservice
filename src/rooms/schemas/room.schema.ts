@@ -10,6 +10,9 @@ class Room {
 
   @Prop({ required: false, index: false })
   description: string;
+  
+  @Prop({ required: false, index: false })
+  photo: string;
 
   @Prop({ required: true, index: false })
   isUser: boolean;
