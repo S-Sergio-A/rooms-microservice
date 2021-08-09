@@ -12,7 +12,7 @@ export class RoomDto {
   @IsString()
   @IsOptional()
   description?: string;
-  
+
   @IsDefined()
   @IsNotEmpty()
   @IsString()

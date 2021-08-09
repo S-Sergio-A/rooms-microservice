@@ -12,7 +12,7 @@ class Notifications {
 
   @Prop({ required: true, index: false, ref: "Room", type: Types.ObjectId })
   roomId: RoomDocument | Types.ObjectId;
-  
+
   @Prop({ required: true, index: false })
   notifications: boolean;
 }
