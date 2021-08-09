@@ -5,24 +5,19 @@ import { Model, Types } from "mongoose";
 import { Observable } from "rxjs";
 import { GlobalErrorCodes } from "../exceptions/errorCodes/GlobalErrorCodes";
 import { NotificationsDocument } from "./schemas/notifications.schema";
+import { MessageDocument } from "./schemas/message.schema";
 import { RightsDocument } from "./schemas/rights.schema";
 import { RoomDocument } from "./schemas/room.schema";
 import { UserDocument } from "./schemas/user.schema";
 import { RoomDto } from "./room.dto";
 
-const cloudinary = require("cloudinary");
-
-cloudinary.config({
-  cloud_name: "gachi322",
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-  secure: true
-});
+const cloudinary = require("cloudinary").v2;
 
 @Injectable()
 export class RoomsService {
   constructor(
     @InjectModel("Room") private readonly roomModel: Model<RoomDocument>,
+    @InjectModel("Message") private readonly messageModel: Model<MessageDocument>,
     @InjectModel("Rights") private readonly rightsModel: Model<RightsDocument>,
     @InjectModel("Notifications") private readonly notificationsModel: Model<NotificationsDocument>,
     @InjectModel("User") private readonly userModel: Model<UserDocument>
@@ -33,17 +28,17 @@ export class RoomsService {
       const welcomeChat = await this.roomModel.findOne({ name: "ChatiZZe" });
 
       welcomeChat.id = welcomeChat.id + userId;
-      welcomeChat.usersID.push(new Types.ObjectId(userId));
+      welcomeChat.usersID = [new Types.ObjectId(userId)];
 
       await welcomeChat.save();
 
       await this.rightsModel.create({
         user: new Types.ObjectId(userId),
-        roomId: welcomeChat._id,
+        roomId: welcomeChat.id + userId,
         rights: ["DELETE_ROOM"]
       });
 
-      await this.__setUserNotificationsSettings(new Types.ObjectId(userId), welcomeChat._id, true);
+      await this.__setUserNotificationsSettings(new Types.ObjectId(userId), new Types.ObjectId(welcomeChat.id + userId), true);
       return HttpStatus.CREATED;
     } catch (e) {
       console.log(e.stack);
@@ -88,9 +83,15 @@ export class RoomsService {
     }
   }
 
-  async getAllRooms(): Promise<RoomDocument[] | RpcException> {
+  async getAllRooms(): Promise<(RoomDocument | { recentMessage: any })[] | RpcException> {
     try {
-      return await this.roomModel.find();
+      const rooms = await this.roomModel.find();
+
+      for (let i = 0; i < rooms.length; i++) {
+        rooms[i]["recentMessage"] = await this.messageModel.findOne({ roomId: rooms[i]._id }, { sort: { $natural: -1 } });
+      }
+
+      return rooms;
     } catch (e) {
       console.log(e.stack);
       return new RpcException({
@@ -118,6 +119,10 @@ export class RoomsService {
             if (userRooms[i].usersID[k]._id.toString() === userId) result.push(userRooms[i]);
           }
         }
+      }
+
+      for (let i = 0; i < result.length; i++) {
+        result[i]["recentMessage"] = await this.messageModel.findOne({ roomId: result[i]._id }, { sort: { $natural: -1 } });
       }
 
       return result;
@@ -164,7 +169,7 @@ export class RoomsService {
     userId: string,
     roomId: string,
     roomDto: Partial<RoomDto>
-  ): Promise<HttpStatus | Observable<any> | RpcException> {
+  ): Promise<HttpStatus | RoomDocument | Observable<any> | RpcException> {
     try {
       if (rights.includes("CHANGE_ROOM") && (await this._verifyRights(rights, new Types.ObjectId(userId), new Types.ObjectId(roomId)))) {
         const room = await this.roomModel.findOne({ _id: new Types.ObjectId(roomId) });
@@ -176,13 +181,14 @@ export class RoomsService {
           name: roomDto.name ? roomDto.name : room.name,
           description: roomDto.description ? roomDto.description : room.description,
           isUser: room.isUser,
+          photo: room.photo,
           isPrivate: roomDto.isPrivate ? roomDto.isPrivate : room.isPrivate,
           membersCount: roomDto.membersCount ? roomDto.membersCount : room.membersCount,
           createdAt: room.createdAt,
           updatedAt: new Date()
         };
         await this.roomModel.updateOne({ _id: room._id }, updatedRoom);
-        return HttpStatus.CREATED;
+        return await this.roomModel.findOne({ _id: new Types.ObjectId(roomId) });
       }
       return HttpStatus.UNAUTHORIZED;
     } catch (e) {
@@ -200,32 +206,32 @@ export class RoomsService {
     userId: string,
     roomId: string,
     photo: any
-  ): Promise<HttpStatus | Observable<any> | RpcException> {
+  ): Promise<HttpStatus | RoomDocument | Observable<any> | RpcException> {
     try {
       if (rights.includes("CHANGE_ROOM") && (await this._verifyRights(rights, new Types.ObjectId(userId), new Types.ObjectId(roomId)))) {
         const room = await this.roomModel.findOne({ _id: new Types.ObjectId(roomId) });
-        let resultingImageUrl;
 
-        cloudinary.v2.uploader.upload(
-          photo,
-          {
-            folder: `ChatiZZe/${room._id}/`,
-            public_id: `photo__${new Date(Date.now().toLocaleString("Ru-ru"))}`
-          },
-          (error, result) => {
-            if (!error && result.url) {
-              resultingImageUrl = result.secure_url;
-            }
-          }
-        );
+        cloudinary.config({
+          cloud_name: process.env.CLOUDINARY_CLOUD,
+          api_key: process.env.CLOUDINARY_API_KEY,
+          api_secret: process.env.CLOUDINARY_API_SECRET,
+          secure: true
+        });
+
+        const result = await cloudinary.uploader.upload(photo.photo, {
+          overwrite: true,
+          invalidate: true,
+          folder: `ChatiZZe/${room._id}/`,
+          public_id: `photo`
+        });
 
         await this.userModel.updateOne(
           { _id: userId },
           {
-            photo: resultingImageUrl ? resultingImageUrl : room.photo
+            photo: result ? result.secure_url : room.photo
           }
         );
-        return HttpStatus.CREATED;
+        await this.roomModel.findOne({ _id: new Types.ObjectId(roomId) });
       }
       return HttpStatus.UNAUTHORIZED;
     } catch (e) {

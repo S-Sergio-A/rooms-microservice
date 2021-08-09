@@ -12,12 +12,12 @@ import { RoomDto } from "./room.dto";
 @Controller("rooms")
 export class RoomsController {
   constructor(private readonly roomsService: RoomsService) {}
-  
+
   @MessagePattern({ cmd: "invoke" }, Transport.REDIS)
   async invoke(): Promise<void> {
     console.log("rooms-service invoked");
   }
-  
+
   @MessagePattern({ cmd: "add-welcome-chat" }, Transport.REDIS)
   async addWelcomeChat(@Payload() userId: string): Promise<HttpStatus | Observable<any> | RpcException> {
     return await this.roomsService.addWelcomeChat(userId);
@@ -48,14 +48,14 @@ export class RoomsController {
   @MessagePattern({ cmd: "update-room" }, Transport.REDIS)
   async updateRoom(
     @Payload() { rights, userId, roomId, roomDto }: { rights: string[]; userId: string; roomId: string; roomDto: Partial<RoomDto> }
-  ): Promise<HttpStatus | Observable<any> | RpcException> {
+  ): Promise<HttpStatus | RoomDocument | Observable<any> | RpcException> {
     return await this.roomsService.updateRoom(rights, userId, roomId, roomDto);
   }
-  
+
   @MessagePattern({ cmd: "change-room-photo" }, Transport.REDIS)
   async changeRoomPhoto(
     @Payload() { rights, userId, roomId, photo }: { rights: string[]; userId: string; roomId: string; photo: any }
-  ): Promise<HttpStatus | Observable<any> | RpcException> {
+  ): Promise<HttpStatus | RoomDocument | Observable<any> | RpcException> {
     return await this.roomsService.changeRoomPhoto(rights, userId, roomId, photo);
   }
 
