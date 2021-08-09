@@ -88,7 +88,7 @@ export class RoomsService {
       const rooms = await this.roomModel.find();
 
       for (let i = 0; i < rooms.length; i++) {
-        rooms[i]["recentMessage"] = await this.messageModel.findOne({ roomId: rooms[i]._id }, { sort: { $natural: -1 } });
+        rooms[i]["recentMessage"] = await this.messageModel.findOne({ roomId: rooms[i]._id }).sort({ $natural: -1 });
       }
 
       return rooms;
@@ -122,7 +122,7 @@ export class RoomsService {
       }
 
       for (let i = 0; i < result.length; i++) {
-        result[i]["recentMessage"] = await this.messageModel.findOne({ roomId: result[i]._id }, { sort: { $natural: -1 } });
+        result[i]["recentMessage"] = await this.messageModel.findOne({ roomId: result[i]._id }).sort({ $natural: -1 });
       }
 
       return result;
@@ -411,20 +411,21 @@ export class RoomsService {
 
   async changeUserRightsInRoom(
     rights: string[],
-    userId: string,
+    performerUserId: string,
+    targetUserId: string,
     roomId: string,
     newRights: string[]
   ): Promise<HttpStatus | Observable<any> | RpcException> {
     try {
       if (
         rights.includes("CHANGE_USER_RIGHTS") &&
-        (await this._verifyRights(rights, new Types.ObjectId(userId), new Types.ObjectId(roomId)))
+        (await this._verifyRights(rights, new Types.ObjectId(performerUserId), new Types.ObjectId(roomId)))
       ) {
         const { nModified } = await this.rightsModel.updateOne(
-          { user: new Types.ObjectId(userId), roomId: new Types.ObjectId(roomId) },
+          { user: new Types.ObjectId(targetUserId), roomId: new Types.ObjectId(roomId) },
           { rights: newRights }
         );
-        console.log(nModified);
+
         if (nModified > 0) {
           return HttpStatus.CREATED;
         } else {

@@ -109,9 +109,9 @@ export class RoomsController {
 
   @MessagePattern({ cmd: "change-user-rights" }, Transport.REDIS)
   public async changeUserRightsInRoom(
-    @Payload() { rights, userId, roomId, newRights }: { rights: string[]; userId: string; roomId: string; newRights: string[] }
+    @Payload() { rights, performerUserId, targetUserId, roomId, newRights }: { rights: string[]; performerUserId: string; targetUserId: string; roomId: string; newRights: string[] }
   ): Promise<HttpStatus | Observable<any> | RpcException> {
-    return await this.roomsService.changeUserRightsInRoom(rights, userId, roomId, newRights);
+    return await this.roomsService.changeUserRightsInRoom(rights, performerUserId, targetUserId, roomId, newRights);
   }
 
   @MessagePattern({ cmd: "get-notifications-settings" }, Transport.REDIS)
