@@ -17,7 +17,7 @@ const cloudinary = require("cloudinary").v2;
 export class RoomsService {
   constructor(
     @InjectModel("Room") private readonly roomModel: Model<RoomDocument>,
-    @InjectModel("Message") private readonly messageModel: Model<MessageDocument>,
+    @InjectModel("Messages") private readonly messageModel: Model<MessageDocument>,
     @InjectModel("Rights") private readonly rightsModel: Model<RightsDocument>,
     @InjectModel("Notifications") private readonly notificationsModel: Model<NotificationsDocument>,
     @InjectModel("User") private readonly userModel: Model<UserDocument>
@@ -108,7 +108,7 @@ export class RoomsService {
 
       const userRooms = await this.roomModel
         .find()
-        .populate("usersID", "id firstName lastName birthday username email phoneNumber photo", this.userModel);
+        .populate("usersID", "_id firstName lastName birthday username email phoneNumber photo", this.userModel);
 
       // O^2
       if (!(userRooms instanceof RpcException)) {
