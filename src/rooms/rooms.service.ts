@@ -9,7 +9,8 @@ import { MessageDocument } from "./schemas/message.schema";
 import { RightsDocument } from "./schemas/rights.schema";
 import { RoomDocument } from "./schemas/room.schema";
 import { UserDocument } from "./schemas/user.schema";
-import { RoomDto } from "./room.dto";
+import { RoomDto } from "./dto/room.dto";
+import { RecentMessageDto } from "./dto/recentMessage.dto";
 
 const cloudinary = require("cloudinary").v2;
 
@@ -54,6 +55,19 @@ export class RoomsService {
     try {
       const createdRoom = new this.roomModel(roomDto);
       createdRoom.usersID.push(new Types.ObjectId(userId));
+      createdRoom.photo = "https://via.placeholder.com/60";
+      createdRoom.recentMessage = {
+        _id: "",
+        text: "loading...",
+        roomId: createdRoom._id,
+        attachment: ["loading..."],
+        timestamp: "loading...",
+        user: {
+          _id: "br",
+          username: "Loading..."
+        }
+      };
+
       await createdRoom.save();
 
       await this.rightsModel.create({
@@ -87,10 +101,6 @@ export class RoomsService {
     try {
       const rooms = await this.roomModel.find();
 
-      for (let i = 0; i < rooms.length; i++) {
-        rooms[i]["recentMessage"] = await this.messageModel.findOne({ roomId: rooms[i]._id }).sort({ $natural: -1 });
-      }
-
       return rooms;
     } catch (e) {
       console.log(e.stack);
@@ -102,9 +112,25 @@ export class RoomsService {
     }
   }
 
-  async getAllUserRooms(userId: string): Promise<RoomDocument[] | Observable<any> | RpcException> {
+  async getAllUserRooms(userId: string): Promise<
+    | (RoomDocument & {
+        recentMessage: {
+          _id: string;
+          user: {
+            _id: string;
+            username: string;
+          };
+          roomId: string;
+          text: string;
+          attachment: string[];
+          timestamp: string;
+        };
+      })[]
+    | Observable<any>
+    | RpcException
+  > {
     try {
-      let result = [];
+      let result: any[] = [];
 
       const userRooms = await this.roomModel
         .find()
@@ -116,13 +142,11 @@ export class RoomsService {
           const idsArrLen = userRooms[i].usersID.length;
           for (let k = 0; k < idsArrLen; k++) {
             // @ts-ignore
-            if (userRooms[i].usersID[k]._id.toString() === userId) result.push(userRooms[i]);
+            if (userRooms[i].usersID[k]._id.toString() === userId) {
+              result.push(userRooms[i]);
+            }
           }
         }
-      }
-
-      for (let i = 0; i < result.length; i++) {
-        result[i]["recentMessage"] = await this.messageModel.findOne({ roomId: result[i]._id }).sort({ $natural: -1 });
       }
 
       return result;
@@ -150,10 +174,22 @@ export class RoomsService {
     }
   }
 
-  async findRoomByName(name: string): Promise<RoomDocument[] | Observable<any> | RpcException> {
+  async findRoomByName(name: string, userId: string): Promise<RoomDocument[] | Observable<any> | RpcException> {
     try {
       const regex = new RegExp(name, "i");
-      return await this.roomModel.find({ name: regex, isPrivate: false });
+      const rooms = await this.roomModel.find({ name: regex });
+
+      const publicRoomsSet: any = new Set();
+      const publicRoomsArray = rooms.filter((item: RoomDocument) => item.isPrivate === false);
+      publicRoomsArray.forEach(publicRoomsSet.add, publicRoomsSet);
+
+      for (let i = 0; i < rooms.length; i++) {
+        if (rooms[i].usersID.includes(new Types.ObjectId(userId))) {
+          publicRoomsSet.add(rooms[i]);
+        }
+      }
+
+      return [...publicRoomsSet];
     } catch (e) {
       console.log(e.stack);
       return new RpcException({
@@ -316,6 +352,21 @@ export class RoomsService {
     }
   }
 
+  async addRecentMessage(recentMessage: RecentMessageDto, roomId: string): Promise<HttpStatus | Observable<any> | RpcException> {
+    try {
+      await this.roomModel.updateOne({ roomId: roomId }, { $addToSet: { recentMessage: recentMessage } });
+
+      return HttpStatus.CREATED;
+    } catch (e) {
+      console.log(e.stack);
+      return new RpcException({
+        key: "INTERNAL_ERROR",
+        code: GlobalErrorCodes.INTERNAL_ERROR.code,
+        message: GlobalErrorCodes.INTERNAL_ERROR.value
+      });
+    }
+  }
+
   async enterPublicRoom(userId: string, roomId: string): Promise<HttpStatus | Observable<any> | RpcException> {
     try {
       const searchResult = await this.roomModel.findOne({ _id: new Types.ObjectId(roomId) });
@@ -329,7 +380,7 @@ export class RoomsService {
           roomId: new Types.ObjectId(roomId),
           rights: ["SEND_MESSAGES", "SEND_ATTACHMENTS", "UPDATE_MESSAGE"]
         });
-        return HttpStatus.CREATED;
+        return HttpStatus.OK;
       }
       return HttpStatus.BAD_REQUEST;
     } catch (e) {
@@ -408,11 +459,9 @@ export class RoomsService {
 
       if (indicator) {
         const searchResult = await this.roomModel.findOne({ _id: new Types.ObjectId(roomId) });
-        console.log(indicator, type, searchResult, roomId);
 
         if (searchResult) {
           const userPosition = searchResult.usersID.findIndex((item) => item === new Types.ObjectId(userId));
-          console.log(userPosition);
 
           if (type === "LEAVE_ROOM" && searchResult.usersID.length === 1) {
             const { deletedCount } = await this.roomModel.deleteOne({ _id: new Types.ObjectId(roomId) });

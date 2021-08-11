@@ -6,7 +6,8 @@ import { NotificationsDocument } from "./schemas/notifications.schema";
 import { RightsDocument } from "./schemas/rights.schema";
 import { RoomDocument } from "./schemas/room.schema";
 import { RoomsService } from "./rooms.service";
-import { RoomDto } from "./room.dto";
+import { RoomDto } from "./dto/room.dto";
+import { RecentMessageDto } from "./dto/recentMessage.dto";
 
 @UseFilters(ExceptionFilter)
 @Controller("rooms")
@@ -36,13 +37,31 @@ export class RoomsController {
   }
 
   @MessagePattern({ cmd: "get-all-user-rooms" }, Transport.REDIS)
-  async getAllUserRooms(@Payload() { userId }: { userId: string }): Promise<RoomDocument[] | Observable<any> | RpcException> {
+  async getAllUserRooms(@Payload() { userId }: { userId: string }): Promise<
+    | (RoomDocument & {
+        recentMessage: {
+          _id: string;
+          user: {
+            _id: string;
+            username: string;
+          };
+          roomId: string;
+          text: string;
+          attachment: string[];
+          timestamp: string;
+        };
+      })[]
+    | Observable<any>
+    | RpcException
+  > {
     return await this.roomsService.getAllUserRooms(userId);
   }
 
   @MessagePattern({ cmd: "find-room-by-name" }, Transport.REDIS)
-  async findRoomByName(@Payload() { name }: { name: string }): Promise<RoomDocument[] | Observable<any> | RpcException> {
-    return await this.roomsService.findRoomByName(name);
+  async findRoomByName(
+    @Payload() { name, userId }: { name: string; userId: string }
+  ): Promise<RoomDocument[] | Observable<any> | RpcException> {
+    return await this.roomsService.findRoomByName(name, userId);
   }
 
   @MessagePattern({ cmd: "update-room" }, Transport.REDIS)
@@ -71,6 +90,13 @@ export class RoomsController {
     @Payload() { rights, userId, messageId, roomId }: { rights: string[]; userId: string; messageId: string; roomId: string }
   ): Promise<HttpStatus | Observable<any> | RpcException> {
     return await this.roomsService.addMessageReferenceToRoom(rights, userId, messageId, roomId);
+  }
+
+  @MessagePattern({ cmd: "add-recent-message" }, Transport.REDIS)
+  public async addRecentMessage(
+    @Payload() { recentMessageDto, roomId }: { recentMessageDto: RecentMessageDto; roomId: string }
+  ): Promise<HttpStatus | Observable<any> | RpcException> {
+    return await this.roomsService.addRecentMessage(recentMessageDto, roomId);
   }
 
   @MessagePattern({ cmd: "delete-message-reference" }, Transport.REDIS)
