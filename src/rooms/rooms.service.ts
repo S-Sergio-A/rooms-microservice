@@ -153,7 +153,7 @@ export class RoomsService {
   async findRoomByName(name: string): Promise<RoomDocument[] | Observable<any> | RpcException> {
     try {
       const regex = new RegExp(name, "i");
-      return await this.roomModel.find({ name: regex });
+      return await this.roomModel.find({ name: regex, isPrivate: false });
     } catch (e) {
       console.log(e.stack);
       return new RpcException({
@@ -306,6 +306,36 @@ export class RoomsService {
       await this.roomModel.updateOne({ _id: new Types.ObjectId(roomId) }, searchResult);
 
       return HttpStatus.CREATED;
+    } catch (e) {
+      console.log(e.stack);
+      return new RpcException({
+        key: "INTERNAL_ERROR",
+        code: GlobalErrorCodes.INTERNAL_ERROR.code,
+        message: GlobalErrorCodes.INTERNAL_ERROR.value
+      });
+    }
+  }
+
+  async enterPublicRoom(userId: string, roomId: string): Promise<HttpStatus | Observable<any> | RpcException> {
+    try {
+      const searchResult = await this.roomModel.findOne({ _id: new Types.ObjectId(roomId) });
+
+      if (searchResult) {
+        searchResult.usersID.push(new Types.ObjectId(userId));
+
+        await this.roomModel.updateOne({ _id: new Types.ObjectId(roomId) }, searchResult);
+        await this.rightsModel.create({
+          user: new Types.ObjectId(userId),
+          roomId: new Types.ObjectId(roomId),
+          rights: [
+            "SEND_MESSAGES",
+            "SEND_ATTACHMENTS",
+            "UPDATE_MESSAGE"
+          ]
+        });
+        return HttpStatus.CREATED;
+      }
+      return HttpStatus.BAD_REQUEST;
     } catch (e) {
       console.log(e.stack);
       return new RpcException({

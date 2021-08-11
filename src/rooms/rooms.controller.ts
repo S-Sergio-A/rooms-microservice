@@ -80,6 +80,14 @@ export class RoomsController {
     return await this.roomsService.deleteMessageFromRoom(rights, userId, roomId, messageId);
   }
 
+  @MessagePattern({ cmd: "enter-public-room" }, Transport.REDIS)
+  public async enterPublicRoom(
+    @Payload()
+    { userId, roomId }: { userId: string; roomId: string }
+  ): Promise<HttpStatus | Observable<any> | RpcException> {
+    return await this.roomsService.enterPublicRoom(roomId, userId);
+  }
+
   @MessagePattern({ cmd: "add-user" }, Transport.REDIS)
   public async addUserToRoom(
     @Payload()
@@ -109,7 +117,20 @@ export class RoomsController {
 
   @MessagePattern({ cmd: "change-user-rights" }, Transport.REDIS)
   public async changeUserRightsInRoom(
-    @Payload() { rights, performerUserId, targetUserId, roomId, newRights }: { rights: string[]; performerUserId: string; targetUserId: string; roomId: string; newRights: string[] }
+    @Payload()
+    {
+      rights,
+      performerUserId,
+      targetUserId,
+      roomId,
+      newRights
+    }: {
+      rights: string[];
+      performerUserId: string;
+      targetUserId: string;
+      roomId: string;
+      newRights: string[];
+    }
   ): Promise<HttpStatus | Observable<any> | RpcException> {
     return await this.roomsService.changeUserRightsInRoom(rights, performerUserId, targetUserId, roomId, newRights);
   }
