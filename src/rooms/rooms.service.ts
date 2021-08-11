@@ -327,11 +327,7 @@ export class RoomsService {
         await this.rightsModel.create({
           user: new Types.ObjectId(userId),
           roomId: new Types.ObjectId(roomId),
-          rights: [
-            "SEND_MESSAGES",
-            "SEND_ATTACHMENTS",
-            "UPDATE_MESSAGE"
-          ]
+          rights: ["SEND_MESSAGES", "SEND_ATTACHMENTS", "UPDATE_MESSAGE"]
         });
         return HttpStatus.CREATED;
       }
@@ -409,14 +405,24 @@ export class RoomsService {
       } else if (type === "LEAVE_ROOM") {
         indicator = true;
       }
-  
-      console.log(indicator, type);
 
       if (indicator) {
         const searchResult = await this.roomModel.findOne({ _id: new Types.ObjectId(roomId) });
+        console.log(indicator, type, searchResult);
 
         if (searchResult) {
           const userPosition = searchResult.usersID.findIndex((item) => item === new Types.ObjectId(userId));
+          console.log(userPosition);
+
+          if (type === "LEAVE_ROOM" && searchResult.usersID.length === 1) {
+            const { deletedCount } = await this.roomModel.deleteOne({ _id: new Types.ObjectId(roomId) });
+
+            if (deletedCount !== 0) {
+              return HttpStatus.OK;
+            } else {
+              return HttpStatus.NOT_FOUND;
+            }
+          }
 
           if (userPosition > -1) {
             searchResult.usersID.splice(userPosition, 1);
