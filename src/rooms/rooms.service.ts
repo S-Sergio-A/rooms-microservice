@@ -409,6 +409,8 @@ export class RoomsService {
       } else if (type === "LEAVE_ROOM") {
         indicator = true;
       }
+  
+      console.log(indicator, type);
 
       if (indicator) {
         const searchResult = await this.roomModel.findOne({ _id: new Types.ObjectId(roomId) });
