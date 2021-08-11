@@ -408,7 +408,7 @@ export class RoomsService {
 
       if (indicator) {
         const searchResult = await this.roomModel.findOne({ _id: new Types.ObjectId(roomId) });
-        console.log(indicator, type, searchResult);
+        console.log(indicator, type, searchResult, roomId);
 
         if (searchResult) {
           const userPosition = searchResult.usersID.findIndex((item) => item === new Types.ObjectId(userId));
