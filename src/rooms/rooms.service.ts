@@ -99,9 +99,7 @@ export class RoomsService {
 
   async getAllRooms(): Promise<(RoomDocument | { recentMessage: any })[] | RpcException> {
     try {
-      const rooms = await this.roomModel.find();
-
-      return rooms;
+      return await this.roomModel.find();
     } catch (e) {
       console.log(e.stack);
       return new RpcException({
@@ -261,8 +259,8 @@ export class RoomsService {
           public_id: `photo`
         });
 
-        await this.userModel.updateOne(
-          { _id: userId },
+        await this.roomModel.updateOne(
+          { _id: roomId },
           {
             photo: result ? result.secure_url : room.photo
           }
@@ -352,8 +350,28 @@ export class RoomsService {
     }
   }
 
-  async addRecentMessage(recentMessage: RecentMessageDto, roomId: string): Promise<HttpStatus | Observable<any> | RpcException> {
+  async addRecentMessage(roomId: string): Promise<HttpStatus | Observable<any> | RpcException> {
     try {
+      const theLastMessage = await this.messageModel
+        .find({ roomId: new Types.ObjectId(roomId) })
+        .sort({ $natural: -1 })
+        .limit(1)
+        .populate("user", "id username", this.userModel);
+
+      const recentMessage = {
+        _id: theLastMessage[0]._id,
+        user: {
+          // @ts-ignore
+          _id: theLastMessage[0].user._id,
+          // @ts-ignore
+          username: theLastMessage[0].user.username
+        },
+        roomId,
+        text: theLastMessage[0].text,
+        attachment: theLastMessage[0].attachment,
+        timestamp: theLastMessage[0].timestamp
+      };
+
       await this.roomModel.updateOne({ roomId: roomId }, { $addToSet: { recentMessage: recentMessage } });
 
       return HttpStatus.CREATED;

@@ -94,9 +94,9 @@ export class RoomsController {
 
   @MessagePattern({ cmd: "add-recent-message" }, Transport.REDIS)
   public async addRecentMessage(
-    @Payload() { recentMessageDto, roomId }: { recentMessageDto: RecentMessageDto; roomId: string }
+    @Payload() { roomId }: { roomId: string }
   ): Promise<HttpStatus | Observable<any> | RpcException> {
-    return await this.roomsService.addRecentMessage(recentMessageDto, roomId);
+    return await this.roomsService.addRecentMessage(roomId);
   }
 
   @MessagePattern({ cmd: "delete-message-reference" }, Transport.REDIS)
@@ -111,7 +111,7 @@ export class RoomsController {
     @Payload()
     { userId, roomId }: { userId: string; roomId: string }
   ): Promise<HttpStatus | Observable<any> | RpcException> {
-    return await this.roomsService.enterPublicRoom(roomId, userId);
+    return await this.roomsService.enterPublicRoom(userId, roomId);
   }
 
   @MessagePattern({ cmd: "add-user" }, Transport.REDIS)
