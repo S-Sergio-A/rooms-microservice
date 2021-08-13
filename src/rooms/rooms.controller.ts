@@ -7,7 +7,6 @@ import { RightsDocument } from "./schemas/rights.schema";
 import { RoomDocument } from "./schemas/room.schema";
 import { RoomsService } from "./rooms.service";
 import { RoomDto } from "./dto/room.dto";
-import { RecentMessageDto } from "./dto/recentMessage.dto";
 
 @UseFilters(ExceptionFilter)
 @Controller("rooms")
