@@ -1,5 +1,5 @@
 import { MessagePattern, Payload, RpcException, Transport } from "@nestjs/microservices";
-import { Controller, HttpStatus, UseFilters } from "@nestjs/common";
+import { Controller, Get, HttpCode, HttpStatus, UseFilters } from "@nestjs/common";
 import { Observable } from "rxjs";
 import { ExceptionFilter } from "../exceptions/filters/Exception.filter";
 import { NotificationsDocument } from "./schemas/notifications.schema";
@@ -9,14 +9,14 @@ import { RoomsService } from "./rooms.service";
 import { RoomDto } from "./dto/room.dto";
 
 @UseFilters(ExceptionFilter)
-@Controller("rooms")
+@Controller()
 export class RoomsController {
   constructor(private readonly roomsService: RoomsService) {}
 
-  @MessagePattern({ cmd: "invoke" }, Transport.REDIS)
-  async invoke(): Promise<void> {
-    console.log("rooms-service invoked");
-  }
+  // @MessagePattern({ cmd: "invoke" }, Transport.REDIS)
+  // async invoke(): Promise<void> {
+  //   console.log("rooms-service invoked");
+  // }
 
   @MessagePattern({ cmd: "add-welcome-chat" }, Transport.REDIS)
   async addWelcomeChat(@Payload() userId: string): Promise<HttpStatus | Observable<any> | RpcException> {
@@ -175,5 +175,11 @@ export class RoomsController {
   @MessagePattern({ cmd: "load-rights" }, Transport.REDIS)
   async loadRights(@Payload() { userId, roomId }: { userId: string; roomId: string }): Promise<RightsDocument | RpcException> {
     return await this.roomsService.loadRights(userId, roomId);
+  }
+  
+  @Get("/")
+  @HttpCode(HttpStatus.OK)
+  async invoke(): Promise<void> {
+    console.log("rooms-service invoked");
   }
 }
