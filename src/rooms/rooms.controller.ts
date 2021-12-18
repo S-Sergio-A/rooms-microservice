@@ -13,11 +13,6 @@ import { RoomDto } from "./dto/room.dto";
 export class RoomsController {
   constructor(private readonly roomsService: RoomsService) {}
 
-  // @MessagePattern({ cmd: "invoke" }, Transport.REDIS)
-  // async invoke(): Promise<void> {
-  //   console.log("rooms-service invoked");
-  // }
-
   @MessagePattern({ cmd: "add-welcome-chat" }, Transport.REDIS)
   async addWelcomeChat(@Payload() userId: string): Promise<HttpStatus | Observable<any> | RpcException> {
     return await this.roomsService.addWelcomeChat(userId);
@@ -56,11 +51,11 @@ export class RoomsController {
     return await this.roomsService.getAllUserRooms(userId);
   }
 
-  @MessagePattern({ cmd: "find-room-by-name" }, Transport.REDIS)
-  async findRoomByName(
+  @MessagePattern({ cmd: "find-room-and-users-by-name" }, Transport.REDIS)
+  async findRoomAndUsersByName(
     @Payload() { name, userId }: { name: string; userId: string }
   ): Promise<RoomDocument[] | Observable<any> | RpcException> {
-    return await this.roomsService.findRoomByName(name, userId);
+    return await this.roomsService.findRoomAndUsersByName(name, userId);
   }
 
   @MessagePattern({ cmd: "update-room" }, Transport.REDIS)
@@ -92,9 +87,7 @@ export class RoomsController {
   }
 
   @MessagePattern({ cmd: "add-recent-message" }, Transport.REDIS)
-  public async addRecentMessage(
-    @Payload() { roomId }: { roomId: string }
-  ): Promise<HttpStatus | Observable<any> | RpcException> {
+  public async addRecentMessage(@Payload() { roomId }: { roomId: string }): Promise<HttpStatus | Observable<any> | RpcException> {
     return await this.roomsService.addRecentMessage(roomId);
   }
 
@@ -135,9 +128,22 @@ export class RoomsController {
 
   @MessagePattern({ cmd: "delete-user" }, Transport.REDIS)
   public async deleteUserFromRoom(
-    @Payload() { rights, userId, roomId, type }: { rights: string[]; userId: string; roomId: string; type: "DELETE_USER" | "LEAVE_ROOM" }
+    @Payload()
+    {
+      rights,
+      userId,
+      userIdToBeDeleted,
+      roomId,
+      type
+    }: {
+      rights: string[];
+      userId: string;
+      userIdToBeDeleted: string;
+      roomId: string;
+      type: "DELETE_USER" | "LEAVE_ROOM";
+    }
   ): Promise<HttpStatus | Observable<any> | RpcException> {
-    return await this.roomsService.deleteUserFromRoom(rights, userId, roomId, type);
+    return await this.roomsService.deleteUserFromRoom(rights, userId, userIdToBeDeleted, roomId, type);
   }
 
   @MessagePattern({ cmd: "change-user-rights" }, Transport.REDIS)
@@ -176,7 +182,7 @@ export class RoomsController {
   async loadRights(@Payload() { userId, roomId }: { userId: string; roomId: string }): Promise<RightsDocument | RpcException> {
     return await this.roomsService.loadRights(userId, roomId);
   }
-  
+
   @Get("/")
   @HttpCode(HttpStatus.OK)
   async invoke(): Promise<void> {
