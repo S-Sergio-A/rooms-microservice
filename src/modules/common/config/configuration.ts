@@ -1,5 +1,6 @@
 import * as process from "process";
 import * as dotenv from "dotenv";
+import { CloudinaryConfigInterface } from "~/modules/common";
 
 dotenv.config();
 
@@ -26,6 +27,7 @@ export default () => ({
   },
   cloudinaryConfig: {
     apiKey: process.env.CLOUDINARY_API_KEY,
-    cloudUrl: process.env.CLOUDINARY_CLOUD_URL
-  }
+    apiSecret: process.env.CLOUDINARY_API_SECRET,
+    cloudName: process.env.CLOUDINARY_CLOUD_NAME
+  } as CloudinaryConfigInterface
 });

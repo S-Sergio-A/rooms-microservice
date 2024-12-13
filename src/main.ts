@@ -11,8 +11,9 @@ import { AppModule } from "./app.module";
 
   app.useLogger(logger);
 
+  const clientUrl = configService.get<string>("app.clientUrl");
   app.enableCors({
-    origin: [process.env.FRONT_URL],
+    origin: [clientUrl],
     credentials: true,
     exposedHeaders: ["X-Access-Token", "X-Refresh-Token", "X-Client-Token", "X-Country", "Content-Type"],
     methods: ["GET", "POST", "DELETE", "PUT", "PATCH", "OPTIONS"]

@@ -1,12 +1,12 @@
 import { HttpStatus, Injectable, InternalServerErrorException } from "@nestjs/common";
-import { RpcException } from "@nestjs/microservices";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model, Types } from "mongoose";
 import { v2 as cloudinary } from "cloudinary";
 import { RoomDto } from "./dto/room.dto";
 import { MessageDocument, NotificationsDocument, RightsDocument, RoomDocument, UserDocument } from "~/modules/schemas";
-import { ConnectionNamesEnum, LoggerService, ModelsNamesEnum, RightsEnum } from "~/modules/common";
+import { CloudinaryConfigInterface, ConnectionNamesEnum, LoggerService, ModelsNamesEnum, RightsEnum } from "~/modules/common";
 import { GLOBAL_ERROR_CODES, GlobalErrorCodesEnum } from "@ssmovzh/chatterly-common-utils";
+import { ConfigService } from "@nestjs/config";
 
 const { ObjectId } = Types;
 
@@ -18,7 +18,8 @@ export class RoomsService {
     @InjectModel(ModelsNamesEnum.RIGHTS, ConnectionNamesEnum.ROOM) private readonly rightsModel: Model<RightsDocument>,
     @InjectModel(ModelsNamesEnum.NOTIFICATIONS, ConnectionNamesEnum.ROOM) private readonly notificationsModel: Model<NotificationsDocument>,
     @InjectModel(ModelsNamesEnum.USER, ConnectionNamesEnum.USER) private readonly userModel: Model<UserDocument>,
-    private readonly logger: LoggerService
+    private readonly logger: LoggerService,
+    private readonly configService: ConfigService
   ) {}
 
   async addWelcomeChat(userId: string): Promise<HttpStatus> {
@@ -121,7 +122,7 @@ export class RoomsService {
         .populate("usersID", "_id firstName lastName birthday username email phoneNumber photo", this.userModel);
 
       // O^2
-      if (!(userRooms instanceof RpcException)) {
+      if (!(userRooms instanceof Error)) {
         for (let i = 0; i < userRooms.length; i++) {
           const idsArrLen = userRooms[i].usersID.length;
           for (let k = 0; k < idsArrLen; k++) {
@@ -209,11 +210,12 @@ export class RoomsService {
     try {
       if (rights.includes(RightsEnum.CHANGE_ROOM) && (await this.__verifyRights(rights, new ObjectId(userId), new ObjectId(roomId)))) {
         const room = await this.roomModel.findOne({ _id: new ObjectId(roomId) });
+        const { apiKey, apiSecret, cloudName } = this.configService.get<CloudinaryConfigInterface>("cloudinary");
 
         cloudinary.config({
-          cloud_name: process.env.CLOUDINARY_CLOUD,
-          api_key: process.env.CLOUDINARY_API_KEY,
-          api_secret: process.env.CLOUDINARY_API_SECRET,
+          cloud_name: cloudName,
+          api_key: apiKey,
+          api_secret: apiSecret,
           secure: true
         });
 
