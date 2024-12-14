@@ -1,7 +1,7 @@
 import "reflect-metadata";
 import { NestFactory } from "@nestjs/core";
 import { ConfigService } from "@nestjs/config";
-import { LoggerService } from "~/modules/common";
+import { LoggerService } from "@ssmovzh/chatterly-common-utils";
 import { AppModule } from "./app.module";
 
 (async () => {

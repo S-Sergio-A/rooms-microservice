@@ -2,9 +2,11 @@ import { HttpStatus, Injectable, InternalServerErrorException } from "@nestjs/co
 import { InjectModel } from "@nestjs/mongoose";
 import { ConfigService } from "@nestjs/config";
 import {
+  CloudinaryConfigInterface,
   ConnectionNamesEnum,
   GLOBAL_ERROR_CODES,
   GlobalErrorCodesEnum,
+  LoggerService,
   Message,
   ModelsNamesEnum,
   Notification,
@@ -15,7 +17,6 @@ import {
 } from "@ssmovzh/chatterly-common-utils";
 import { Model, Types } from "mongoose";
 import { v2 as cloudinary } from "cloudinary";
-import { CloudinaryConfigInterface, LoggerService } from "~/modules/common";
 import { RoomDto } from "./dto/room.dto";
 
 const { ObjectId } = Types;

@@ -1,10 +1,9 @@
 import { Module } from "@nestjs/common";
 import { MongooseModule } from "@nestjs/mongoose";
-import { defaultImports, LoggerModule } from "~/modules/common";
-import { HealthCheckModule } from "~/modules/health-check/health-check.module";
+import { defaultImports } from "~/modules/common";
 import { RabbitModule } from "~/modules/rabbit";
 import { RoomsModule } from "~/modules/rooms/rooms.module";
-import { ConnectionNamesEnum } from "@ssmovzh/chatterly-common-utils";
+import { ConnectionNamesEnum, HealthCheckModule, LoggerModule } from "@ssmovzh/chatterly-common-utils";
 
 @Module({
   imports: [

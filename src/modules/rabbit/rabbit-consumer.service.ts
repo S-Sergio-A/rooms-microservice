@@ -1,10 +1,9 @@
 import { Inject, Injectable, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { RabbitConfigInterface } from "@ssmovzh/chatterly-common-utils";
+import { LoggerService, RabbitConfigInterface } from "@ssmovzh/chatterly-common-utils";
 import { Channel, connect, ConsumeMessage, Message } from "amqplib";
 import { from, Subject, Subscription } from "rxjs";
 import { mergeMap } from "rxjs/operators";
-import { LoggerService } from "~/modules/common";
 import { Executor } from "~/modules/rooms";
 
 @Injectable()
