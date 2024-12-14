@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import { AuthDataInterface } from "@ssmovzh/chatterly-common-utils/dist/interfaces";
+import { AuthDataInterface } from "@ssmovzh/chatterly-common-utils";
 import { LoggerService } from "~/modules/common";
 import { Handlers } from "~/modules/rooms/handlers";
 

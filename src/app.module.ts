@@ -1,10 +1,11 @@
 import { ConfigModule } from "@nestjs/config";
 import { Module } from "@nestjs/common";
 import { MongooseModule } from "@nestjs/mongoose";
-import { ConnectionNamesEnum, defaultImports, LoggerModule } from "~/modules/common";
+import { defaultImports, LoggerModule } from "~/modules/common";
 import { HealthCheckModule } from "~/modules/health-check/health-check.module";
 import { RabbitModule } from "~/modules/rabbit";
 import { RoomsModule } from "~/modules/rooms/rooms.module";
+import { ConnectionNamesEnum } from "@ssmovzh/chatterly-common-utils";
 
 @Module({
   imports: [
@@ -17,13 +18,13 @@ import { RoomsModule } from "~/modules/rooms/rooms.module";
     MongooseModule.forRoot(
       `mongodb+srv://${process.env.MONGO_USERNAME}:${process.env.MONGO_PASSWORD}@${process.env.MONGO_CLUSTER_URL}/${process.env.MONGO_USER_DATABASE_NAME}?retryWrites=true&w=majority`,
       {
-        connectionName: ConnectionNamesEnum.USER
+        connectionName: ConnectionNamesEnum.USERS
       }
     ),
     MongooseModule.forRoot(
       `mongodb+srv://${process.env.MONGO_USERNAME}:${process.env.MONGO_PASSWORD}@${process.env.MONGO_CLUSTER_URL}/${process.env.MONGO_ROOMS_DATABASE_NAME}?retryWrites=true&w=majority`,
       {
-        connectionName: ConnectionNamesEnum.ROOM
+        connectionName: ConnectionNamesEnum.ROOMS
       }
     ),
     MongooseModule.forRoot(

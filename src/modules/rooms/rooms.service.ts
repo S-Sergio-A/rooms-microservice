@@ -1,30 +1,40 @@
 import { HttpStatus, Injectable, InternalServerErrorException } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
+import { ConfigService } from "@nestjs/config";
+import {
+  ConnectionNamesEnum,
+  GLOBAL_ERROR_CODES,
+  GlobalErrorCodesEnum,
+  Message,
+  ModelsNamesEnum,
+  Notification,
+  Right,
+  RightsEnum,
+  Room,
+  User
+} from "@ssmovzh/chatterly-common-utils";
 import { Model, Types } from "mongoose";
 import { v2 as cloudinary } from "cloudinary";
+import { CloudinaryConfigInterface, LoggerService } from "~/modules/common";
 import { RoomDto } from "./dto/room.dto";
-import { MessageDocument, NotificationsDocument, RightsDocument, RoomDocument, UserDocument } from "~/modules/schemas";
-import { CloudinaryConfigInterface, ConnectionNamesEnum, LoggerService, ModelsNamesEnum, RightsEnum } from "~/modules/common";
-import { GLOBAL_ERROR_CODES, GlobalErrorCodesEnum } from "@ssmovzh/chatterly-common-utils";
-import { ConfigService } from "@nestjs/config";
 
 const { ObjectId } = Types;
 
 @Injectable()
 export class RoomsService {
   constructor(
-    @InjectModel(ModelsNamesEnum.ROOM, ConnectionNamesEnum.ROOM) private readonly roomModel: Model<RoomDocument>,
-    @InjectModel(ModelsNamesEnum.MESSAGES, ConnectionNamesEnum.MESSAGES) private readonly messageModel: Model<MessageDocument>,
-    @InjectModel(ModelsNamesEnum.RIGHTS, ConnectionNamesEnum.ROOM) private readonly rightsModel: Model<RightsDocument>,
-    @InjectModel(ModelsNamesEnum.NOTIFICATIONS, ConnectionNamesEnum.ROOM) private readonly notificationsModel: Model<NotificationsDocument>,
-    @InjectModel(ModelsNamesEnum.USER, ConnectionNamesEnum.USER) private readonly userModel: Model<UserDocument>,
+    @InjectModel(ModelsNamesEnum.ROOMS, ConnectionNamesEnum.ROOMS) private readonly roomModel: Model<Room>,
+    @InjectModel(ModelsNamesEnum.MESSAGES, ConnectionNamesEnum.MESSAGES) private readonly messageModel: Model<Message>,
+    @InjectModel(ModelsNamesEnum.RIGHTS, ConnectionNamesEnum.ROOMS) private readonly rightsModel: Model<Right>,
+    @InjectModel(ModelsNamesEnum.NOTIFICATIONS, ConnectionNamesEnum.ROOMS) private readonly notificationsModel: Model<Notification>,
+    @InjectModel(ModelsNamesEnum.USERS, ConnectionNamesEnum.USERS) private readonly userModel: Model<User>,
     private readonly logger: LoggerService,
     private readonly configService: ConfigService
   ) {}
 
   async addWelcomeChat(userId: string): Promise<HttpStatus> {
     try {
-      const welcomeChat = await this.roomModel.findOne<RoomDocument>({ name: "Chatterly" });
+      const welcomeChat = await this.roomModel.findOne<Room>({ name: "Chatterly" });
 
       welcomeChat.id = welcomeChat.id + userId;
       welcomeChat.usersID = [new ObjectId(userId)];
@@ -52,20 +62,31 @@ export class RoomsService {
 
   async createRoom(userId: string, roomDto: RoomDto): Promise<HttpStatus> {
     try {
-      const createdRoom: RoomDocument = new this.roomModel(roomDto);
+      const createdRoom: Room = new this.roomModel(roomDto);
       createdRoom.usersID.push(new ObjectId(userId));
       createdRoom.photo = "https://via.placeholder.com/60";
-      createdRoom.recentMessage = {
-        _id: "",
+      createdRoom.recentMessage = new Message({
         text: "loading...",
-        roomId: createdRoom._id as string,
+        roomId: createdRoom._id as Types.ObjectId,
         attachment: ["loading..."],
         timestamp: "loading...",
-        user: {
-          _id: "test",
-          username: "Loading..."
-        }
-      };
+        user: new User({
+          username: "Loading...",
+          password: "Loading...",
+          photo: "https://via.placeholder.com/60",
+          email: "Loading...",
+          phoneNumber: "Loading...",
+          firstName: "Loading...",
+          lastName: "Loading...",
+          birthday: "Loading...",
+          verification: "Loading...",
+          isActive: false,
+          isBlocked: false,
+          verificationExpires: 0,
+          loginAttempts: 0,
+          blockExpires: 0
+        })
+      });
 
       await this.rightsModel.create({
         user: new ObjectId(userId),
@@ -85,7 +106,7 @@ export class RoomsService {
     }
   }
 
-  async getAllRooms(): Promise<(RoomDocument | { recentMessage: any })[]> {
+  async getAllRooms(): Promise<(Room | { recentMessage: any })[]> {
     try {
       return await this.roomModel.find();
     } catch (error) {
@@ -99,21 +120,7 @@ export class RoomsService {
     }
   }
 
-  async getAllUserRooms(userId: string): Promise<
-    (RoomDocument & {
-      recentMessage: {
-        _id: string;
-        user: {
-          _id: string;
-          username: string;
-        };
-        roomId: string;
-        text: string;
-        attachment: string[];
-        timestamp: string;
-      };
-    })[]
-  > {
+  async getAllUserRooms(userId: string): Promise<Room[]> {
     try {
       const result: any[] = [];
 
@@ -145,7 +152,7 @@ export class RoomsService {
     }
   }
 
-  async findRoomAndUsersByName(name: string, userId: string): Promise<RoomDocument[]> {
+  async findRoomAndUsersByName(name: string, userId: string): Promise<Room[]> {
     try {
       const regex = new RegExp(name, "gi");
       const rooms = await this.roomModel.find({ name: regex, isPrivate: false });
@@ -173,7 +180,7 @@ export class RoomsService {
     }
   }
 
-  async updateRoom(rights: RightsEnum[], userId: string, roomId: string, roomDto: Partial<RoomDto>): Promise<HttpStatus | RoomDocument> {
+  async updateRoom(rights: RightsEnum[], userId: string, roomId: string, roomDto: Partial<RoomDto>): Promise<HttpStatus | Room> {
     try {
       if (rights.includes(RightsEnum.CHANGE_ROOM) && (await this.__verifyRights(rights, new ObjectId(userId), new ObjectId(roomId)))) {
         const room = await this.roomModel.findOne({ _id: new ObjectId(roomId) });
@@ -206,7 +213,7 @@ export class RoomsService {
     }
   }
 
-  async changeRoomPhoto(rights: RightsEnum[], userId: string, roomId: string, photo: any): Promise<HttpStatus | RoomDocument> {
+  async changeRoomPhoto(rights: RightsEnum[], userId: string, roomId: string, photo: any): Promise<HttpStatus | Room> {
     try {
       if (rights.includes(RightsEnum.CHANGE_ROOM) && (await this.__verifyRights(rights, new ObjectId(userId), new ObjectId(roomId)))) {
         const room = await this.roomModel.findOne({ _id: new ObjectId(roomId) });
@@ -331,7 +338,7 @@ export class RoomsService {
         _id: msg._id,
         user: {
           _id: msg.user._id,
-          username: (msg.user as UserDocument).username
+          username: (msg.user as User).username
         },
         roomId,
         text: msg.text,
@@ -389,7 +396,7 @@ export class RoomsService {
   ): Promise<HttpStatus> {
     try {
       if (rights.includes(RightsEnum.ADD_USERS) && (await this.__verifyRights(rights, new ObjectId(userId), new ObjectId(roomId)))) {
-        let user: UserDocument;
+        let user: User;
         const searchResult = await this.roomModel.findOne({ _id: new ObjectId(roomId) });
 
         if (newUserIdentifier.includes("@")) {
@@ -403,7 +410,7 @@ export class RoomsService {
         if (searchResult) {
           let userId: Types.ObjectId;
 
-          if (user._id) {
+          if (user.id) {
             userId = new ObjectId(user._id as string);
           }
 
@@ -561,7 +568,7 @@ export class RoomsService {
     }
   }
 
-  async getUserNotificationsSettings(userId: string): Promise<NotificationsDocument[]> {
+  async getUserNotificationsSettings(userId: string): Promise<Notification[]> {
     try {
       return await this.notificationsModel.find({ user: new ObjectId(userId) });
     } catch (error) {
@@ -575,7 +582,7 @@ export class RoomsService {
     }
   }
 
-  async loadRights(user: string, roomId: string): Promise<RightsDocument> {
+  async loadRights(user: string, roomId: string): Promise<Right> {
     try {
       return await this.rightsModel.findOne({ user: new ObjectId(user), roomId: new ObjectId(roomId) });
     } catch (error) {

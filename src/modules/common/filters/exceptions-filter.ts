@@ -1,7 +1,6 @@
 import { ArgumentsHost, Catch, ExceptionFilter, HttpException, HttpStatus } from "@nestjs/common";
 import { AbstractHttpAdapter } from "@nestjs/core";
-import { ApiResponseService } from "@ssmovzh/chatterly-common-utils/dist/services";
-import { isObject } from "@ssmovzh/chatterly-common-utils/dist/functions";
+import { ApiResponseService, isObject } from "@ssmovzh/chatterly-common-utils";
 
 @Catch(HttpException)
 export class ExceptionsFilter implements ExceptionFilter {
