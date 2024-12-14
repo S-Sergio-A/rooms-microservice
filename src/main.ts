@@ -1,7 +1,7 @@
 import "reflect-metadata";
 import { NestFactory } from "@nestjs/core";
 import { ConfigService } from "@nestjs/config";
-import { LoggerService } from "@ssmovzh/chatterly-common-utils";
+import { CustomHeadersEnum, LoggerService } from "@ssmovzh/chatterly-common-utils";
 import { AppModule } from "./app.module";
 
 (async () => {
@@ -15,7 +15,7 @@ import { AppModule } from "./app.module";
   app.enableCors({
     origin: [clientUrl],
     credentials: true,
-    exposedHeaders: ["X-Access-Token", "X-Refresh-Token", "X-Client-Token", "X-Country", "Content-Type"],
+    exposedHeaders: Object.values(CustomHeadersEnum),
     methods: ["GET", "POST", "DELETE", "PUT", "PATCH", "OPTIONS"]
   });
 
