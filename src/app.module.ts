@@ -1,4 +1,3 @@
-import { ConfigModule } from "@nestjs/config";
 import { Module } from "@nestjs/common";
 import { MongooseModule } from "@nestjs/mongoose";
 import { defaultImports, LoggerModule } from "~/modules/common";
@@ -10,7 +9,6 @@ import { ConnectionNamesEnum } from "@ssmovzh/chatterly-common-utils";
 @Module({
   imports: [
     ...defaultImports,
-    ConfigModule.forRoot(),
     RoomsModule,
     RabbitModule,
     HealthCheckModule,
