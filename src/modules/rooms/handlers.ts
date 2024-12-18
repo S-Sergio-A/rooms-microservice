@@ -10,7 +10,7 @@ export class Handlers {
     this.handlers.set(RabbitQueuesEnum.ADD_WELCOME_CHAT, this.roomsService.addWelcomeChat.bind(this.roomsService));
     this.handlers.set(RabbitQueuesEnum.CREATE_ROOM, this.roomsService.createRoom.bind(this.roomsService));
     this.handlers.set(RabbitQueuesEnum.GET_ALL_ROOMS, this.roomsService.getAllRooms.bind(this.roomsService));
-    this.handlers.set(RabbitQueuesEnum.GET_ALL_USER_ROOMS, this.roomsService.getAllRooms.bind(this.roomsService));
+    this.handlers.set(RabbitQueuesEnum.GET_ALL_USER_ROOMS, this.roomsService.getAllUserRooms.bind(this.roomsService));
     this.handlers.set(RabbitQueuesEnum.FIND_ROOM_AND_USERS_BY_NAME, this.roomsService.findRoomAndUsersByName.bind(this.roomsService));
     this.handlers.set(RabbitQueuesEnum.UPDATE_ROOM, this.roomsService.updateRoom.bind(this.roomsService));
     this.handlers.set(RabbitQueuesEnum.CHANGE_ROOM_PHOTO, this.roomsService.changeRoomPhoto.bind(this.roomsService));

@@ -3,7 +3,6 @@ import { InjectModel } from "@nestjs/mongoose";
 import { ConfigService } from "@nestjs/config";
 import {
   CloudinaryConfigInterface,
-  ConnectionNamesEnum,
   GLOBAL_ERROR_CODES,
   GlobalErrorCodesEnum,
   LoggerService,
@@ -24,31 +23,30 @@ const { ObjectId } = Types;
 @Injectable()
 export class RoomsService {
   constructor(
-    @InjectModel(ModelsNamesEnum.ROOMS, ConnectionNamesEnum.ROOMS) private readonly roomModel: Model<Room>,
-    @InjectModel(ModelsNamesEnum.MESSAGES, ConnectionNamesEnum.MESSAGES) private readonly messageModel: Model<Message>,
-    @InjectModel(ModelsNamesEnum.RIGHTS, ConnectionNamesEnum.ROOMS) private readonly rightsModel: Model<Right>,
-    @InjectModel(ModelsNamesEnum.NOTIFICATIONS, ConnectionNamesEnum.ROOMS) private readonly notificationsModel: Model<Notification>,
-    @InjectModel(ModelsNamesEnum.USERS, ConnectionNamesEnum.USERS) private readonly userModel: Model<User>,
+    @InjectModel(ModelsNamesEnum.ROOMS) private readonly roomModel: Model<Room>,
+    @InjectModel(ModelsNamesEnum.MESSAGES) private readonly messageModel: Model<Message>,
+    @InjectModel(ModelsNamesEnum.RIGHTS) private readonly rightsModel: Model<Right>,
+    @InjectModel(ModelsNamesEnum.NOTIFICATIONS) private readonly notificationsModel: Model<Notification>,
+    @InjectModel(ModelsNamesEnum.USERS) private readonly userModel: Model<User>,
     private readonly logger: LoggerService,
     private readonly configService: ConfigService
   ) {}
 
-  async addWelcomeChat(userId: string): Promise<HttpStatus> {
+  async addWelcomeChat({ user: userId }: { user: string }): Promise<HttpStatus> {
     try {
       const welcomeChat = await this.roomModel.findOne<Room>({ name: "Chatterly" });
 
-      welcomeChat.id = welcomeChat.id + userId;
-      welcomeChat.usersID = [new ObjectId(userId)];
+      welcomeChat.usersID = [...welcomeChat.usersID, new ObjectId(userId)];
 
       await welcomeChat.save();
 
       await this.rightsModel.create({
         user: new ObjectId(userId),
-        roomId: welcomeChat.id + userId,
+        roomId: welcomeChat._id,
         rights: [RightsEnum.DELETE_ROOM]
       });
 
-      await this.__setUserNotificationsSettings(new ObjectId(userId), new ObjectId(welcomeChat.id + userId), true);
+      await this.__setUserNotificationsSettings(new ObjectId(userId), welcomeChat._id as Types.ObjectId, true);
       return HttpStatus.CREATED;
     } catch (error) {
       this.logger.error(error, error.trace);
@@ -61,17 +59,17 @@ export class RoomsService {
     }
   }
 
-  async createRoom(userId: string, roomDto: RoomDto): Promise<HttpStatus> {
+  async createRoom(roomDto: RoomDto & { userId: string }): Promise<HttpStatus> {
     try {
       const createdRoom: Room = new this.roomModel(roomDto);
-      createdRoom.usersID.push(new ObjectId(userId));
+      createdRoom.usersID.push(new ObjectId(roomDto.userId));
       createdRoom.photo = "https://via.placeholder.com/60";
-      createdRoom.recentMessage = new Message({
+      createdRoom.recentMessage = new this.messageModel({
         text: "loading...",
         roomId: createdRoom._id as Types.ObjectId,
         attachment: ["loading..."],
         timestamp: "loading...",
-        user: new User({
+        user: new this.userModel({
           username: "Loading...",
           password: "Loading...",
           photo: "https://via.placeholder.com/60",
@@ -89,12 +87,14 @@ export class RoomsService {
         })
       });
 
+      await createdRoom.save();
+
       await this.rightsModel.create({
-        user: new ObjectId(userId),
+        user: new ObjectId(roomDto.userId),
         roomId: createdRoom._id,
         rights: Object.values(RightsEnum)
       });
-      await this.__setUserNotificationsSettings(new ObjectId(userId), createdRoom._id as Types.ObjectId, true);
+      await this.__setUserNotificationsSettings(new ObjectId(roomDto.userId), createdRoom._id as Types.ObjectId, true);
       return HttpStatus.CREATED;
     } catch (error) {
       this.logger.error(error, error.trace);
@@ -121,7 +121,7 @@ export class RoomsService {
     }
   }
 
-  async getAllUserRooms(userId: string): Promise<Room[]> {
+  async getAllUserRooms({ userId }: { userId: string }): Promise<Room[]> {
     try {
       const result: any[] = [];
 
@@ -153,7 +153,7 @@ export class RoomsService {
     }
   }
 
-  async findRoomAndUsersByName(name: string, userId: string): Promise<Room[]> {
+  async findRoomAndUsersByName({ name, userId }: { name: string; userId: string }): Promise<Room[]> {
     try {
       const regex = new RegExp(name, "gi");
       const rooms = await this.roomModel.find({ name: regex, isPrivate: false });
@@ -181,7 +181,17 @@ export class RoomsService {
     }
   }
 
-  async updateRoom(rights: RightsEnum[], userId: string, roomId: string, roomDto: Partial<RoomDto>): Promise<HttpStatus | Room> {
+  async updateRoom({
+    roomId,
+    roomDto,
+    userId,
+    rights
+  }: {
+    rights: RightsEnum[];
+    userId: string;
+    roomId: string;
+    roomDto: Partial<RoomDto>;
+  }): Promise<HttpStatus | Room> {
     try {
       if (rights.includes(RightsEnum.CHANGE_ROOM) && (await this.__verifyRights(rights, new ObjectId(userId), new ObjectId(roomId)))) {
         const room = await this.roomModel.findOne({ _id: new ObjectId(roomId) });
@@ -214,35 +224,45 @@ export class RoomsService {
     }
   }
 
-  async changeRoomPhoto(rights: RightsEnum[], userId: string, roomId: string, photo: any): Promise<HttpStatus | Room> {
+  async changeRoomPhoto({
+    rights,
+    userId,
+    roomId,
+    photo
+  }: {
+    rights: RightsEnum[];
+    userId: string;
+    roomId: string;
+    photo: string;
+  }): Promise<HttpStatus | Room> {
     try {
-      if (rights.includes(RightsEnum.CHANGE_ROOM) && (await this.__verifyRights(rights, new ObjectId(userId), new ObjectId(roomId)))) {
-        const room = await this.roomModel.findOne({ _id: new ObjectId(roomId) });
-        const { apiKey, apiSecret, cloudName } = this.configService.get<CloudinaryConfigInterface>("cloudinary");
-
-        cloudinary.config({
-          cloud_name: cloudName,
-          api_key: apiKey,
-          api_secret: apiSecret,
-          secure: true
-        });
-
-        const result = await cloudinary.uploader.upload(photo.photo, {
-          overwrite: true,
-          invalidate: true,
-          folder: `Chatterly/${room._id}/`,
-          public_id: `photo`
-        });
-
-        await this.roomModel.updateOne(
-          { _id: roomId },
-          {
-            photo: result ? result.secure_url : room.photo
-          }
-        );
-        await this.roomModel.findOne({ _id: new ObjectId(roomId) });
+      if (!rights.includes(RightsEnum.CHANGE_ROOM) || !(await this.__verifyRights(rights, new ObjectId(userId), new ObjectId(roomId)))) {
+        return null;
       }
-      return HttpStatus.UNAUTHORIZED;
+      const room = await this.roomModel.findOne({ _id: new ObjectId(roomId) });
+      const { apiKey, apiSecret, cloudName } = this.configService.get<CloudinaryConfigInterface>("cloudinary");
+
+      cloudinary.config({
+        cloud_name: cloudName,
+        api_key: apiKey,
+        api_secret: apiSecret,
+        secure: true
+      });
+
+      const result = await cloudinary.uploader.upload(photo, {
+        overwrite: true,
+        invalidate: true,
+        folder: `Chatterly/${room._id}/`,
+        public_id: `photo`
+      });
+
+      await this.roomModel.updateOne(
+        { _id: roomId },
+        {
+          photo: result ? result.secure_url : room.photo
+        }
+      );
+      return await this.roomModel.findOne({ _id: roomId });
     } catch (error) {
       this.logger.error(error, error.trace);
       const { httpCode, msg } = GLOBAL_ERROR_CODES.get(GlobalErrorCodesEnum.INTERNAL_SERVER_ERROR);
@@ -254,7 +274,7 @@ export class RoomsService {
     }
   }
 
-  async deleteRoom(rights: RightsEnum[], userId: string, roomId: string): Promise<HttpStatus> {
+  async deleteRoom({ roomId, userId, rights }: { rights: RightsEnum[]; userId: string; roomId: string }): Promise<HttpStatus> {
     try {
       if (rights.includes(RightsEnum.DELETE_ROOM) && (await this.__verifyRights(rights, new ObjectId(userId), new ObjectId(roomId)))) {
         const { deletedCount } = await this.roomModel.deleteOne({ _id: new ObjectId(roomId) });
@@ -277,7 +297,7 @@ export class RoomsService {
     }
   }
 
-  async deleteMessageFromRoom(roomId: string, messageId: string): Promise<HttpStatus> {
+  async deleteMessageFromRoom({ messageId, roomId }: { messageId: string; roomId: string }): Promise<HttpStatus> {
     try {
       const searchResult = await this.roomModel.findOne({ _id: new ObjectId(roomId) });
 
@@ -301,7 +321,7 @@ export class RoomsService {
     }
   }
 
-  async addMessageReferenceToRoom(messageId: string, roomId: string): Promise<HttpStatus> {
+  async addMessageReferenceToRoom({ messageId, roomId }: { messageId: string; roomId: string }): Promise<HttpStatus> {
     try {
       const searchResult = await this.roomModel.findOne({ _id: new ObjectId(roomId) });
 
@@ -321,7 +341,7 @@ export class RoomsService {
     }
   }
 
-  async addRecentMessage(roomId: string): Promise<HttpStatus> {
+  async addRecentMessage({ roomId }: { roomId: string }): Promise<HttpStatus> {
     try {
       const theLastMessage = await this.messageModel
         .find({ roomId: new ObjectId(roomId) })
@@ -361,12 +381,13 @@ export class RoomsService {
     }
   }
 
-  async enterPublicRoom(userId: string, roomId: string): Promise<HttpStatus> {
+  async enterPublicRoom({ userId, roomId }: { userId: string; roomId: string }): Promise<HttpStatus> {
     try {
       const searchResult = await this.roomModel.findOne({ _id: new ObjectId(roomId) });
 
       if (searchResult) {
         searchResult.usersID.push(new ObjectId(userId));
+        searchResult.usersID = Array.from(new Set(searchResult.usersID.map(String))).map((id) => new ObjectId(id));
 
         await this.roomModel.updateOne({ _id: new ObjectId(roomId) }, searchResult);
         await this.rightsModel.create({
@@ -388,13 +409,19 @@ export class RoomsService {
     }
   }
 
-  async addUserToRoom(
-    rights: RightsEnum[],
-    userId: string,
-    roomId: string,
-    newUserIdentifier: string,
-    userRights: string[]
-  ): Promise<HttpStatus> {
+  async addUserToRoom({
+    rights,
+    userId,
+    roomId,
+    userRights,
+    newUserIdentifier
+  }: {
+    rights: RightsEnum[];
+    userId: string;
+    roomId: string;
+    newUserIdentifier: string;
+    userRights: string[];
+  }): Promise<HttpStatus> {
     try {
       if (rights.includes(RightsEnum.ADD_USERS) && (await this.__verifyRights(rights, new ObjectId(userId), new ObjectId(roomId)))) {
         let user: User;
@@ -440,13 +467,19 @@ export class RoomsService {
     }
   }
 
-  async deleteUserFromRoom(
-    rights: RightsEnum[],
-    userId: string,
-    userIdToBeDeleted: string,
-    roomId: string,
-    type: "DELETE_USER" | "LEAVE_ROOM"
-  ): Promise<HttpStatus> {
+  async deleteUserFromRoom({
+    rights,
+    userId,
+    roomId,
+    userIdToBeDeleted,
+    type
+  }: {
+    rights: RightsEnum[];
+    userId: string;
+    userIdToBeDeleted: string;
+    roomId: string;
+    type: "DELETE_USER" | "LEAVE_ROOM";
+  }): Promise<HttpStatus> {
     try {
       let indicator = false;
 
@@ -500,13 +533,19 @@ export class RoomsService {
     }
   }
 
-  async changeUserRightsInRoom(
-    rights: RightsEnum[],
-    performerUserId: string,
-    targetUserId: string,
-    roomId: string,
-    newRights: string[]
-  ): Promise<HttpStatus> {
+  async changeUserRightsInRoom({
+    rights,
+    newRights,
+    roomId,
+    performerUserId,
+    targetUserId
+  }: {
+    rights: RightsEnum[];
+    performerUserId: string;
+    targetUserId: string;
+    roomId: string;
+    newRights: string[];
+  }): Promise<HttpStatus> {
     try {
       if (
         rights.includes(RightsEnum.CHANGE_USER_RIGHTS) &&
@@ -536,7 +575,15 @@ export class RoomsService {
     }
   }
 
-  async changeNotificationSettings(userId: string, roomId: string, notifications: boolean): Promise<HttpStatus> {
+  async changeNotificationSettings({
+    userId,
+    roomId,
+    notifications
+  }: {
+    userId: string;
+    roomId: string;
+    notifications: boolean;
+  }): Promise<HttpStatus> {
     try {
       const prevNotificationsSettings = await this.notificationsModel.findOne({
         user: new ObjectId(userId),
@@ -569,7 +616,7 @@ export class RoomsService {
     }
   }
 
-  async getUserNotificationsSettings(userId: string): Promise<Notification[]> {
+  async getUserNotificationsSettings({ userId }: { userId: string }): Promise<Notification[]> {
     try {
       return await this.notificationsModel.find({ user: new ObjectId(userId) });
     } catch (error) {
@@ -583,9 +630,9 @@ export class RoomsService {
     }
   }
 
-  async loadRights(user: string, roomId: string): Promise<Right> {
+  async loadRights({ userId, roomId }: { userId: string; roomId: string }): Promise<Right> {
     try {
-      return await this.rightsModel.findOne({ user: new ObjectId(user), roomId: new ObjectId(roomId) });
+      return await this.rightsModel.findOne({ user: new ObjectId(userId), roomId: new ObjectId(roomId) });
     } catch (error) {
       this.logger.error(error, error.trace);
       const { httpCode, msg } = GLOBAL_ERROR_CODES.get(GlobalErrorCodesEnum.INTERNAL_SERVER_ERROR);
